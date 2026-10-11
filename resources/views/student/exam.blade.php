@@ -15,6 +15,7 @@
 </div>
 <p id="question-text" class="question-text">
 </p>
+<figure id="question-media" hidden><img id="question-image" class="question-image" alt=""><figcaption id="question-image-alt"></figcaption><button type="button" class="secondary" data-enlarge-image="question-image">Perbesar gambar</button></figure>
 <fieldset id="options">
 <legend class="sr-only">Pilih jawaban</legend>
 </fieldset>

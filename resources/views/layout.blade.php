@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/experience.css">
 <script src="/assets/experience.js" defer></script>
+<script src="/assets/media.js" defer></script>
 <script src="/assets/common.js" defer>
 </script>@stack('head')</head>
 <body class="{{ request()->is('admin*') && !request()->is('admin/login') ? 'admin-shell' : '' }}">
@@ -15,7 +16,7 @@
 <a class="brand" href="/admin">
 <span class="brand-icon">C</span> CBT ADMIN</a>
 <p class="eyebrow">PANEL PANITIA</p>
-<nav>@foreach(['/admin'=>'Dashboard','/admin/subjects'=>'Mata Pelajaran','/admin/participants'=>'Peserta','/admin/questions'=>'Bank Soal','/admin/sessions'=>'Sesi & Penilaian'] as $href=>$label)<a href="{{ $href }}" data-nav-icon="{{ $href==='/admin'?'dashboard':basename($href) }}" class="{{ ($href==='/admin'?request()->getPathInfo()===$href:str_starts_with(request()->getPathInfo(),$href))?'active':'' }}">{{ $label }}</a>@endforeach</nav>
+<nav>@foreach(['/admin'=>'Dashboard','/admin/subjects'=>'Mata Pelajaran','/admin/participants'=>'Peserta','/admin/questions'=>'Bank Soal','/admin/sessions'=>'Sesi & Penilaian','/admin/winners'=>'Juara per Mapel'] as $href=>$label)<a href="{{ $href }}" data-nav-icon="{{ $href==='/admin'?'dashboard':basename($href) }}" class="{{ ($href==='/admin'?request()->getPathInfo()===$href:str_starts_with(request()->getPathInfo(),$href))?'active':'' }}">{{ $label }}</a>@endforeach</nav>
 <div class="sidebar-bottom">
 <span class="status-dot">
 </span> Server lokal · Offline ready<form method="post" action="/admin/logout">@csrf<button class="secondary">Keluar</button>

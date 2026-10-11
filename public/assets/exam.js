@@ -33,6 +33,13 @@
         el("question-number").textContent =
             "SOAL " + (index + 1) + " DARI " + questions.length;
         el("question-text").textContent = q.text;
+        if (el("question-media")) {
+            el("question-media").hidden = !q.image_url;
+            const image = el("question-image");
+            if (q.image_url) { image.src = q.image_url; image.alt = q.image_alt || "Gambar pendukung soal"; }
+            else image.removeAttribute("src");
+            el("question-image-alt").textContent = q.image_alt || "";
+        }
         el("options").replaceChildren();
         q.options.forEach((o, i) => {
             const label = document.createElement("label");

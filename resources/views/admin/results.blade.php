@@ -42,4 +42,4 @@
 <td colspan="9" class="empty">Belum ada hasil. Hasil muncul setelah peserta submit.</td>
 </tr>@endforelse</tbody>
 </table>
-</div>@endsection
+</div><a href="/admin/winners">Ringkasan juara per mapel →</a>@endsection

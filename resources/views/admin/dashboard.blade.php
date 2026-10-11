@@ -14,4 +14,5 @@
 @else<div class="notice">Mulai dari master mapel, import peserta dan soal, lalu buat sesi pertama.</div>@endif
 <div class="stats">@foreach($counts as $label=>$count)<div><strong>{{ $count }}</strong>{{ $label }}</div>@endforeach</div>
 <section class="card"><div class="section-heading"><h2>Semua sesi lomba</h2><a href="/admin/sessions">Kelola sesi →</a></div>@include('admin.session-table')</section>
+<div class="section-heading"><h2>Juara per mapel</h2><a href="/admin/winners">Pilih sesi & lihat ringkasan →</a></div>@include('admin.winner-cards')
 @endsection

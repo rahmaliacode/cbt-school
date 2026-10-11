@@ -120,3 +120,9 @@ Sebelum lomba: simulasi beberapa peserta pada LAN tanpa internet, refresh di ten
 Import siswa: **Peserta → Template Excel peserta → Preview import → Simpan**. Header `Nomor Peserta | Nama | Asal Sekolah`; nomor harus unik. Excel/CSV/paste didukung. Preview tidak menulis database.
 
 Lihat [PLAN_REVIEW.md](PLAN_REVIEW.md) untuk alur dan gap terhadap PDF. Export XLSX memiliki sheet Ranking/Configuration/Audit; PDF melalui cetak browser/Save as PDF. Setelah update jalankan `php artisan migrate` untuk kolom kunci hasil.
+
+### Gambar soal dan juara per mapel
+
+Bank Soal mendukung satu gambar JPG/PNG/WebP per soal, maksimal 2 MB (6000 × 6000 piksel). Import Excel tetap memakai template teks; lampirkan gambar melalui edit soal setelah import, sebelum sesi dimulai. Peserta dapat memperbesar gambar. Gambar disimpan privat di `storage/app/private/question-images`, diberikan hanya melalui akses admin atau peserta dengan attempt aktif, dan disalin sebagai referensi tetap ke snapshot sesi. Sertakan folder gambar saat backup bersama database; tidak perlu `storage:link`. Jalankan `php artisan migrate` setelah memperbarui aplikasi.
+
+Menu Juara per Mapel dan dashboard menampilkan peringkat 1 dari satu sesi FINAL per mapel, dengan nama peserta, sekolah, poin, sesi dan aturan tie-break. Default adalah sesi terakhir dikunci; panitia bisa memilih sesi FINAL lain. Semua peserta seri ditampilkan bersama. Hasil DRAFT tidak masuk ringkasan.

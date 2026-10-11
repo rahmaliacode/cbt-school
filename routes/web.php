@@ -9,6 +9,7 @@ Route::post('/login', [S::class, 'authenticate'])->middleware('throttle:20,1');
 Route::get('/waiting', [S::class, 'waiting']);
 Route::post('/start', [S::class, 'start']);
 Route::get('/exam', [S::class, 'exam']);
+Route::get('/exam/media/{questionId}', [S::class, 'image'])->whereNumber('questionId');
 Route::get('/exam/state', [S::class, 'state']);
 Route::post('/exam/answer', [S::class, 'save']);
 Route::post('/exam/submit', [S::class, 'submit']);
@@ -19,6 +20,8 @@ Route::post('/admin/login', [A::class, 'authenticate'])->middleware('throttle:10
 Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('/', [A::class, 'dashboard']);
     Route::post('/logout', [A::class, 'logout']);
+    Route::get('/winners', [A::class, 'winners']);
+    Route::get('/questions/{question}/image', [A::class, 'questionImage']);
     Route::get('/subjects', [A::class, 'subjects']);
     Route::post('/subjects', [A::class, 'storeSubject']);
     Route::get('/participants', [A::class, 'participants']);

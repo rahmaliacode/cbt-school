@@ -63,7 +63,18 @@ class AdminController extends Controller
             ];
         }
 
-        return view('admin.dashboard', ['sessions' => $sessions, 'focus' => $focus, 'readiness' => $readiness, 'counts' => ['Sesi' => $sessions->count(), 'Peserta' => Participant::count(), 'Soal' => Question::count(), 'Sedang mengerjakan' => Attempt::where('status', 'in_progress')->count(), 'Selesai' => Attempt::where('status', '!=', 'in_progress')->count()]]);
+        return view('admin.dashboard', ['sessions' => $sessions, 'focus' => $focus, 'readiness' => $readiness, 'champions' => app(\App\Services\WinnerSummary::class)->get(), 'counts' => ['Sesi' => $sessions->count(), 'Peserta' => Participant::count(), 'Soal' => Question::count(), 'Sedang mengerjakan' => Attempt::where('status', 'in_progress')->count(), 'Selesai' => Attempt::where('status', '!=', 'in_progress')->count()]]);
+    }
+
+    public function winners(Request $r)
+    {
+        $data = $r->validate(['session_ids' => 'sometimes|array', 'session_ids.*' => 'nullable|integer']);
+        return view('admin.winners', ['champions' => app(\App\Services\WinnerSummary::class)->get($data['session_ids'] ?? [])]);
+    }
+
+    public function questionImage(Question $question)
+    {
+        return \App\Services\QuestionMedia::response($question->image_path);
     }
 
     public function subjects()
@@ -176,21 +187,34 @@ class AdminController extends Controller
 
     private function writeQuestion(Request $r, ExamEngine $engine, ?Question $question = null)
     {
-        $data = $r->validate(['subject_id' => 'required|exists:subjects,id', 'number' => ['required', 'integer', 'min:1', 'max:2147483647', Rule::unique('questions')->where('subject_id', $r->subject_id)->ignore($question?->id)], 'text' => 'required|string', 'options' => 'required|array:A,B,C,D,E', 'options.A' => 'required|string', 'options.B' => 'required|string', 'options.C' => 'required|string', 'options.D' => 'required|string', 'options.E' => 'nullable|string', 'key' => 'required|in:A,B,C,D,E']);
+        $data = $r->validate(['subject_id' => 'required|exists:subjects,id', 'number' => ['required', 'integer', 'min:1', 'max:2147483647', Rule::unique('questions')->where('subject_id', $r->subject_id)->ignore($question?->id)], 'text' => 'required|string', 'options' => 'required|array:A,B,C,D,E', 'options.A' => 'required|string', 'options.B' => 'required|string', 'options.C' => 'required|string', 'options.D' => 'required|string', 'options.E' => 'nullable|string', 'key' => 'required|in:A,B,C,D,E', 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048|dimensions:max_width=6000,max_height=6000', 'image_alt' => 'nullable|string|max:200', 'remove_image' => 'nullable|boolean']);
         $engine->require($data['key'] !== 'E' || isset($data['options']['E']) && $data['options']['E'] !== '', 'Opsi E wajib jika kunci E.');
-        DB::transaction(function () use ($question, $data) {
+        $uploadedPath = null;
+        try { DB::transaction(function () use ($question, $data, $r, &$uploadedPath) {
             if ($question && ExamSession::whereNotNull('question_snapshot')->get()->contains(fn ($s) => in_array($question->id, array_column($s->question_snapshot, 'id')))) {
                 throw ValidationException::withMessages(['question' => 'Soal sudah dipakai. Buat soal baru untuk menjaga riwayat.']);
             }
             $q = $question ?? new Question;
-            $q->fill(collect($data)->only(['subject_id', 'number', 'text'])->all())->save();
+            $q->fill(collect($data)->only(['subject_id', 'number', 'text', 'image_alt'])->all());
+            if ($r->boolean('remove_image')) { $q->image_path = null; }
+            if ($r->hasFile('image')) {
+                $path = $r->file('image')->store('question-images', 'local');
+                if (! $path) { throw ValidationException::withMessages(['image' => 'Gambar gagal disimpan.']); }
+                $uploadedPath = $path;
+                $q->image_path = $path;
+                DB::afterCommit(fn () => app(ExamEngine::class)->log('question.image_uploaded', ['question_id' => $q->id]));
+            }
+            $q->save();
             $q->options()->delete();
             foreach ($data['options'] as $label => $text) {
                 if ($text !== null && $text !== '') {
                     $q->options()->create(['label' => $label, 'text' => $text, 'is_correct' => $label === $data['key']]);
                 }
             }
-        });
+        }); } catch (\Throwable $error) {
+            if ($uploadedPath) { \Illuminate\Support\Facades\Storage::disk('local')->delete($uploadedPath); }
+            throw $error;
+        }
     }
 
     public function deleteQuestion(Question $question)

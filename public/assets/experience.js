@@ -32,6 +32,7 @@
     questions: "M5 3h12l3 3v15H5z M9 8h7 M9 12h7 M9 16h4",
     sessions: "M8 2v4 M16 2v4 M3 10h18 M3 4h18v17H3z M8 14h2 M14 14h2",
     monitor: "M3 12h4l3-7 4 14 3-7h4",
+    winners: "M8 3h8v7a4 4 0 0 1-8 0V3 M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v5 M8 21h8",
     results: "M5 21V11h4v10 M11 21V3h4v18 M17 21v-7h4v7",
     plan: "M4 5h16 M4 12h16 M4 19h16 M8 2v20",
   };

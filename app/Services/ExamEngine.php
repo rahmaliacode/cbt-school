@@ -27,7 +27,7 @@ class ExamEngine
             $questions = $questions->take($s->question_count);
             foreach ($questions as $q) {
                 $this->require($q->options->count() === $s->option_count && $q->options->where('is_correct', true)->count() === 1, 'Jumlah opsi atau kunci soal tidak sesuai konfigurasi sesi.');
-            } $s->update(['status' => 'running', 'started_at' => now(), 'ends_at' => now()->addMinutes($s->duration_minutes), 'configuration_snapshot' => $s->only(['question_count', 'duration_minutes', 'correct_score', 'incorrect_score', 'blank_score', 'option_count', 'tie_breaker', 'shuffle_questions', 'shuffle_options', 'show_live_score']), 'question_snapshot' => $questions->map(fn ($q) => ['id' => $q->id, 'text' => $q->text, 'options' => $q->options->map(fn ($o) => $o->only(['id', 'text', 'is_correct']))->all()])->all()]);
+            } $s->update(['status' => 'running', 'started_at' => now(), 'ends_at' => now()->addMinutes($s->duration_minutes), 'configuration_snapshot' => $s->only(['question_count', 'duration_minutes', 'correct_score', 'incorrect_score', 'blank_score', 'option_count', 'tie_breaker', 'shuffle_questions', 'shuffle_options', 'show_live_score']), 'question_snapshot' => $questions->map(fn ($q) => ['id' => $q->id, 'text' => $q->text, 'image_path' => $q->image_path, 'image_alt' => $q->image_alt, 'options' => $q->options->map(fn ($o) => $o->only(['id', 'text', 'is_correct']))->all()])->all()]);
             $this->log('session_started', ['exam_session_id' => $s->id]);
         });
     }

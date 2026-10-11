@@ -26,7 +26,7 @@ Master mapel → import siswa → import soal → sesi dan penilaian → ruang t
 ## Gap terhadap keseluruhan PDF
 
 - Hak akses pengawas/operator hasil belum dipisah; sekarang admin/non-admin dan peserta. Navigasi demo bebas, bukan autentikasi produksi.
-- Belum master event/template/default mapel dan paket soal berversi/media; sekarang sesi langsung dan N soal pertama per mapel.
+- Belum master event/template/default mapel dan paket soal berversi; sekarang sesi langsung dan N soal pertama per mapel.
 - Belum cache halaman/soal untuk reload tanpa LAN, IndexedDB, batch acknowledgment dan tiga indikator sinkron lengkap. Antrean jawaban localStorage sudah ada.
 - Belum grace pasca-deadline yang diaudit; jawaban terlambat ditolak.
 - Belum device binding/otorisasi pindah perangkat; reset attempt beralasan sudah ada.
@@ -37,3 +37,6 @@ Master mapel → import siswa → import soal → sesi dan penilaian → ruang t
 ## Validasi
 
 29 test / 189 assertion lokal (PHP 8.3, SQLite in-memory), Blade view cache dan JS syntax. CI repository memakai PHP 8.2 dan MySQL 8.4. Smoke demo meliputi halaman, impor, ranking, skor, privacy hasil dan XLSX round-trip. Browser visual QA tidak tersedia di lingkungan ini; perlu UAT pengguna. SQLite tidak membuktikan locking MySQL atau kesiapan lomba.
+
+- Gambar soal JPG/PNG/WebP: tersedia melalui unggah manual/edit setelah import, penyimpanan privat, snapshot dan pembesaran di ujian. Gambar pada opsi jawaban/import gambar tertanam Excel belum tersedia.
+- Ringkasan juara per mapel: tersedia dari sesi FINAL terpilih, semua juara seri ditampilkan.

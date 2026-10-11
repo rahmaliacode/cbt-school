@@ -35,4 +35,4 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: test_password
       - run: php artisan view:cache
-      - run: node --check public/assets/exam.js && node --check public/assets/monitor.js && node --check public/assets/experience.js
+      - run: node --check public/assets/exam.js && node --check public/assets/monitor.js && node --check public/assets/experience.js && node --check public/assets/media.js

@@ -86,10 +86,19 @@ class StudentController extends Controller
         foreach ($a->question_order as $id) {
             $q = $questions[$id];
             $options = collect($q['options'])->keyBy('id');
-            $safe[] = ['id' => $id, 'text' => $q['text'], 'options' => array_map(fn ($oid) => ['id' => $oid, 'text' => $options[$oid]['text']], $a->option_order[$id])];
+            $safe[] = ['id' => $id, 'text' => $q['text'], 'image_url' => empty($q['image_path']) ? null : '/exam/media/'.$id, 'image_alt' => $q['image_alt'] ?? 'Gambar pendukung soal', 'options' => array_map(fn ($oid) => ['id' => $oid, 'text' => $options[$oid]['text']], $a->option_order[$id])];
         }
 
         return response()->json(['status' => $a->status, 'server_now' => now()->getTimestampMs(), 'deadline_at' => $a->deadline_at->getTimestampMs(), 'questions' => $safe, 'answers' => $a->answers()->get(['question_id', 'answer_option_id', 'is_flagged', 'revision'])]);
+    }
+
+    public function image(Request $r, int $questionId, ExamEngine $engine)
+    {
+        $engine->expire();
+        $a = $this->attempt($r);
+        abort_unless($a->status === 'in_progress' && in_array($questionId, $a->question_order), 403);
+        $q = collect($a->examSession->question_snapshot)->firstWhere('id', $questionId);
+        return \App\Services\QuestionMedia::response($q['image_path'] ?? null);
     }
 
     public function save(Request $r, ExamEngine $engine)
