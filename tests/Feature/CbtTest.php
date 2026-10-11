@@ -327,10 +327,12 @@ class CbtTest extends TestCase
     public function test_all_main_pages_and_template_render(): void
     {
         $s = $this->makeSession();
-        $a = $this->attempt($s);
-        $this->withSession(['participant_id' => $a->participant_id, 'exam_session_id' => $s->id]);
+        $this->withSession(['participant_id' => $s->participants->first()->id, 'exam_session_id' => $s->id]);
         $this->get('/')->assertOk();
         $this->get('/waiting')->assertOk();
+        $a = $this->attempt($s);
+        $this->get('/')->assertRedirect('/exam');
+        $this->get('/waiting')->assertRedirect('/exam');
         $this->get('/exam')->assertOk();
         $this->get('/admin/login')->assertOk();
         $this->actingAs($this->admin());
