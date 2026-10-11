@@ -30,9 +30,10 @@
 <form method="post" action="/admin/questions">@csrf @include('admin.question-fields',['q'=>null])<button>Simpan soal</button>
 </form>
 </details>
-<section class="card">
+<section class="card" data-search-table>
+<div class="table-tools"><label><span class="sr-only">Cari soal</span><input type="search" data-search-input placeholder="Cari nama, nomor, atau mapel…"></label><span class="small muted" data-search-count></span></div><p class="table-empty" data-search-empty hidden>Tidak ada data yang cocok. Coba kata lain.</p>
 <h2>Daftar soal <span class="muted small">{{ $questions->count() }} soal</span>
-</h2>@forelse($questions as $q)<details>
+</h2>@forelse($questions as $q)<details data-search-entry>
 <summary>
 <span class="badge">{{ $q->subject->name }} · {{ $q->number }}</span> {{ \Illuminate\Support\Str::limit($q->text,100) }}</summary>
 <form method="post" action="/admin/questions/{{ $q->id }}">@csrf @method('PUT') @include('admin.question-fields')<button>Simpan perubahan</button>

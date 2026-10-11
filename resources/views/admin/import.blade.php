@@ -1,8 +1,8 @@
 @extends('layout') @section('content')<p class="eyebrow">VALIDASI IMPORT</p>
-<h1>Preview soal</h1>
+<h1>Preview soal</h1><div class="stats import-metrics"><div><strong>{{ count($preview['rows'])+count($preview['errors']) }}</strong>Baris diperiksa</div><div><strong>{{ count($preview['rows']) }}</strong>Siap diimpor</div><div><strong>{{ count($preview['errors']) }}</strong>Perlu diperbaiki</div><div><strong>{{ collect($preview['errors'])->filter(fn($e)=>str_contains(strtolower($e['message']),'duplikat'))->count() }}</strong>Baris duplikat</div></div>
 <p>{{ count($preview['rows']) }} baris valid · {{ count($preview['errors']) }} baris gagal.</p>@if($preview['errors'])<div class="notice error">
 <strong>Import belum dapat disimpan. Tidak ada data yang dimasukkan.</strong>
-<ul>@foreach($preview['errors'] as $error)<li>Baris {{ $error['row'] }}: {{ $error['message'] }}</li>@endforeach</ul>
+<p>Cocokkan nomor baris dengan file Excel, perbaiki isinya, lalu ulangi preview. Data belum dimasukkan.</p><ul>@foreach($preview['errors'] as $error)<li>Baris {{ $error['row'] }}: {{ $error['message'] }}</li>@endforeach</ul>
 </div>@endif<div class="card table-wrap">
 <table>
 <thead>

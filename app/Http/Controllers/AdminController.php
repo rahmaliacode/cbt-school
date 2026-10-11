@@ -49,7 +49,21 @@ class AdminController extends Controller
     {
         $engine->expire();
 
-        return view('admin.dashboard', ['sessions' => ExamSession::with('subject')->latest()->get(), 'counts' => ['Sesi' => ExamSession::count(), 'Peserta' => Participant::count(), 'Soal' => Question::count(), 'Sedang mengerjakan' => Attempt::where('status', 'in_progress')->count(), 'Selesai' => Attempt::where('status', '!=', 'in_progress')->count()]]);
+        $sessions = ExamSession::with('subject', 'participants')->latest()->get();
+        $focus = $sessions->firstWhere('status', 'running') ?? $sessions->firstWhere('status', 'draft') ?? $sessions->first();
+        $readiness = [];
+        if ($focus) {
+            $bank = $focus->question_snapshot ?? Question::with('options')->where('subject_id', $focus->subject_id)->orderBy('number')->get()->map(fn ($q) => ['options' => $q->options->map(fn ($o) => ['is_correct' => $o->is_correct])->all()])->all();
+            $selected = array_slice($bank, 0, $focus->question_count);
+            $readiness = [
+                ['ok' => $focus->participants->isNotEmpty(), 'title' => 'Peserta terdaftar', 'detail' => $focus->participants->count().' peserta ditugaskan ke sesi', 'url' => '/admin/sessions/'.$focus->id.'/edit', 'action' => 'Pilih peserta'],
+                ['ok' => count($bank) >= $focus->question_count, 'title' => 'Jumlah soal cukup', 'detail' => count($bank).' soal tersedia · '.$focus->question_count.' diperlukan', 'url' => '/admin/questions', 'action' => 'Lengkapi soal'],
+                ['ok' => count($selected) === $focus->question_count && collect($selected)->every(fn ($q) => count($q['options']) === $focus->option_count && collect($q['options'])->where('is_correct', true)->count() === 1), 'title' => 'Opsi dan kunci valid', 'detail' => 'Semua soal harus memiliki '.$focus->option_count.' opsi dan satu kunci', 'url' => '/admin/questions', 'action' => 'Periksa soal'],
+                ['ok' => $focus->duration_minutes > 0 && strlen($focus->token) >= 6, 'title' => 'Aturan lomba lengkap', 'detail' => $focus->duration_minutes.' menit · skor '.$focus->correct_score.' / '.$focus->incorrect_score.' / '.$focus->blank_score, 'url' => '/admin/sessions/'.$focus->id.'/edit', 'action' => 'Atur nilai'],
+            ];
+        }
+
+        return view('admin.dashboard', ['sessions' => $sessions, 'focus' => $focus, 'readiness' => $readiness, 'counts' => ['Sesi' => $sessions->count(), 'Peserta' => Participant::count(), 'Soal' => Question::count(), 'Sedang mengerjakan' => Attempt::where('status', 'in_progress')->count(), 'Selesai' => Attempt::where('status', '!=', 'in_progress')->count()]]);
     }
 
     public function subjects()

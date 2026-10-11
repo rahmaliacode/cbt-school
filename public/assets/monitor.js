@@ -16,6 +16,14 @@
     async function poll() {
         try {
             const data = await cbtFetch(window.monitorEndpoint);
+            const count = (id, predicate) => {
+                const target = document.getElementById(id);
+                if (target) target.textContent = data.participants.filter(predicate).length;
+            };
+            count("monitor-waiting", p => p.status === "not_started");
+            count("monitor-active", p => p.status === "in_progress");
+            count("monitor-submitted", p => ["submitted", "timed_out"].includes(p.status));
+            count("monitor-disconnected", p => p.status === "in_progress" && p.connection === "Terputus");
             body.replaceChildren();
             data.participants.forEach((p) => {
                 const tr = document.createElement("tr");

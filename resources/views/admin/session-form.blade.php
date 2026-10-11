@@ -1,7 +1,7 @@
 @extends('layout') @section('content')<p class="eyebrow">KONFIGURASI LOMBA</p>
 <h1>{{ $session->exists?'Ubah sesi':'Buat sesi baru' }}</h1>
 <p class="muted">Konfigurasi dan soal dikunci saat sesi dimulai.</p>
-<form class="card" method="post" action="/admin/sessions{{ $session->exists?'/'.$session->id:'' }}">@csrf @if($session->exists) @method('PUT') @endif<div class="form-grid">
+<div class="session-editor"><form data-session-form class="card" method="post" action="/admin/sessions{{ $session->exists?'/'.$session->id:'' }}">@csrf @if($session->exists) @method('PUT') @endif<div class="form-grid">
 <label>Nama sesi<input name="name" required value="{{ old('name',$session->name) }}">
 </label>
 <label>Mata pelajaran<select name="subject_id" required>
@@ -29,4 +29,4 @@
 <input type="checkbox" name="participant_ids[]" value="{{ $p->id }}" @checked(in_array($p->id,old('participant_ids',$session->exists?$session->participants->pluck('id')->all():[])))>{{ $p->participant_number }} · {{ $p->name }}</label>@endforeach</div>
 </fieldset>
 <button @disabled($session->exists&&$session->status!=='draft')>Simpan sesi</button> <a href="/admin/sessions">Batal</a>
-</form>@endsection @push('scripts')<script>document.getElementById('select-all').addEventListener('change',e=>document.querySelectorAll('[name="participant_ids[]"]').forEach(c=>c.checked=e.target.checked));</script>@endpush
+</form><aside class="session-preview"><section class="card" data-score-simulator><p class="eyebrow">PREVIEW PENILAIAN</p><h2 data-preview-title>Sesi baru</h2><p class="small muted" data-preview-meta></p><div class="rule-banner"><p>Simulasikan jumlah jawaban</p></div><div class="simulation-inputs"><label>Benar<input type="number" min="0" step="1" data-sample-correct aria-label="Jumlah benar contoh"></label><label>Salah<input type="number" min="0" step="1" data-sample-wrong aria-label="Jumlah salah contoh"></label></div><div class="score-output"><output aria-label="Skor simulasi" aria-live="polite">—</output><small>poin dari jawaban contoh</small></div><p class="simulation-equation" data-equation></p><p class="score-validation" role="status" data-validation></p><p class="small muted">Sisa soal dihitung kosong. Contoh ini tidak mengubah nilai peserta.</p></section><div class="ready-hint">Konfigurasi dan soal dikunci saat sesi dimulai. Sesi draf dapat diubah.</div></aside></div>@endsection @push('scripts')<script>document.getElementById('select-all').addEventListener('change',e=>document.querySelectorAll('[name="participant_ids[]"]').forEach(c=>c.checked=e.target.checked));</script>@endpush

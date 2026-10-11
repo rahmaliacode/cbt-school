@@ -474,4 +474,13 @@ class CbtTest extends TestCase
         $this->engine->submit($b);
         $this->assertSame($b->id, $this->engine->leaderboard($s)[0]->attempt_id);
     }
+    public function test_dashboard_explains_missing_preparation_and_session_form_has_score_preview(): void
+    {
+        $subject = Subject::create(['name' => 'IPA']);
+        ExamSession::create(['subject_id' => $subject->id, 'name' => 'Draft preparation', 'token' => 'DRAFT123', 'question_count' => 30, 'duration_minutes' => 90, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'option_count' => 4, 'tie_breaker' => 'none']);
+        $this->actingAs($this->admin());
+        $this->get('/admin')->assertOk()->assertSee('0 peserta ditugaskan')->assertSee('0 soal tersedia')->assertSee('30 diperlukan')->assertSee('Lengkapi persiapan dahulu')->assertDontSee('Mulai sesi →');
+        $this->get('/admin/sessions/create')->assertOk()->assertSee('data-score-simulator', false)->assertSee('PREVIEW PENILAIAN')->assertSee('Jumlah benar contoh');
+    }
+
 }

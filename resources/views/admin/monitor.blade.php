@@ -7,6 +7,7 @@
 </div>
 <a class="button secondary" href="/admin/sessions/{{ $session->id }}/results">Hasil & peringkat</a>
 </div>
+<div class="stats"><div><strong id="monitor-waiting">—</strong>Belum mulai<small>Peserta belum membuka ujian</small></div><div><strong id="monitor-active">—</strong>Sedang mengerjakan<small>Pantau progres tanpa jawaban</small></div><div><strong id="monitor-submitted">—</strong>Sudah submit<small>Jawaban selesai dikumpulkan</small></div><div><strong id="monitor-disconnected">—</strong>Koneksi perlu diperiksa<small>Peserta aktif dengan koneksi terputus</small></div></div>
 <div class="notice">Isi jawaban, kunci, benar/salah, dan skor tidak ditampilkan di monitor.</div>
 <p id="monitor-status" role="status">Memuat data…</p>
 <div class="card table-wrap">

@@ -1,13 +1,17 @@
-@extends('layout') @section('content')<div class="page-heading">
-<div>
-<p class="eyebrow">RINGKASAN LOMBA</p>
-<h1>Dashboard panitia</h1>
-<p class="muted">Siapkan sesi, pantau peserta, dan rekap hasil lomba.</p>
-</div>
-<a href="/admin/sessions/create" class="button">+ Buat sesi</a>
-</div>
-<div class="stats">@foreach($counts as $label=>$count)<div>
-<strong>{{ $count }}</strong>{{ $label }}</div>@endforeach</div>
-<section class="card">
-<h2>Sesi lomba</h2>@include('admin.session-table')</section>
-<div class="notice">Persiapan: buat mapel → daftarkan peserta → import soal → konfigurasi sesi → mulai sesi. Semua aset tersedia lokal.</div>@endsection
+@extends('layout') @section('content')
+<div class="crumb">CBT School <span>/</span> Dashboard panitia</div>
+<div class="page-heading"><div><p class="eyebrow">RUANG KONTROL LOMBA</p><h1>Dashboard panitia</h1><p class="muted">Lihat kesiapan sesi, jalankan ujian, dan verifikasi hasil dari satu tempat.</p></div><a href="/admin/sessions/create" class="button">+ Buat sesi</a></div>
+@if($focus)
+@php($readyCount=collect($readiness)->where('ok',true)->count())
+@php($phase=$focus->status==='draft'?1:($focus->status==='running'?2:($focus->results_locked_at?4:3)))
+<div class="steps-row" aria-label="Tahapan lomba">@foreach(['Siapkan data','Atur sesi','Jalankan ujian','Verifikasi hasil','Kunci & ekspor'] as $i=>$label)<span class="{{ $i===$phase?'active':'' }}"><b>{{ $i+1 }}</b>{{ $label }}</span>@endforeach</div>
+<div class="dashboard-grid"><section class="card"><div class="section-heading"><div><p class="eyebrow">KESIAPAN SESI</p><h2>{{ $focus->name }}</h2><p class="small muted">Checklist data dan aturan sebelum ujian</p></div><span class="pill {{ $focus->status }}">{{ ['draft'=>'Draf','running'=>'Berjalan','ended'=>'Berakhir'][$focus->status] }}</span></div>
+<div class="readiness-meter"><div class="progress-track" role="progressbar" aria-label="Persiapan sesi" aria-valuenow="{{ $readyCount }}" aria-valuemin="0" aria-valuemax="4"><div class="progress-fill" style="width:{{ $readyCount*25 }}%"></div></div><span class="small muted">{{ $readyCount }}/4 siap</span></div>
+<div class="checklist">@foreach($readiness as $check)<div class="checklist-item"><span class="checkmark {{ $check['ok']?'done':'' }}" aria-label="{{ $check['ok']?'Siap':'Perlu dilengkapi' }}">{{ $check['ok']?'✓':'!' }}</span><div><strong>{{ $check['title'] }}</strong><small>{{ $check['detail'] }}</small></div>@if($focus->status==='draft')<a href="{{ $check['url'] }}">{{ $check['ok']?'Lihat':$check['action'] }} →</a>@endif</div>@endforeach</div></section>
+<section class="card"><p class="eyebrow">RINGKASAN SESI</p><h2>Aturan yang berlaku</h2>@include('admin.session-summary',['summarySession'=>$focus])
+<div class="next-step">@if($focus->status==='running')<strong>Pantau peserta yang sedang ujian</strong><p>Periksa progres dan sisa waktu, tanpa membuka jawaban.</p><a class="button" href="/admin/sessions/{{ $focus->id }}/monitor">Buka monitoring →</a>@elseif($focus->status==='ended')<strong>{{ $focus->results_locked_at?'Hasil siap diekspor':'Verifikasi nilai sebelum mengunci' }}</strong><p>Periksa peringkat dan hasil seri sebelum menjadi FINAL.</p><a class="button" href="/admin/sessions/{{ $focus->id }}/results">Buka hasil →</a>@elseif($readyCount===4)<strong>Sesi siap dimulai</strong><p>Aturan dan soal dikunci saat mulai. Semua peserta memakai deadline yang sama.</p><form method="post" action="/admin/sessions/{{ $focus->id }}/start" data-confirm="Mulai sesi? Aturan dan soal akan dikunci.">@csrf<button>Mulai sesi →</button></form>@else<strong>Lengkapi persiapan dahulu</strong><p>Periksa item yang belum siap sebelum memulai ujian.</p><a class="button" href="/admin/sessions/{{ $focus->id }}/edit">Lengkapi pengaturan →</a>@endif</div>
+</section></div>
+@else<div class="notice">Mulai dari master mapel, import peserta dan soal, lalu buat sesi pertama.</div>@endif
+<div class="stats">@foreach($counts as $label=>$count)<div><strong>{{ $count }}</strong>{{ $label }}</div>@endforeach</div>
+<section class="card"><div class="section-heading"><h2>Semua sesi lomba</h2><a href="/admin/sessions">Kelola sesi →</a></div>@include('admin.session-table')</section>
+@endsection

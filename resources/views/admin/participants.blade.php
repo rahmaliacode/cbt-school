@@ -23,8 +23,9 @@
 <button>+ Tambah peserta</button>
 </form>
 </section>
-<section class="card">
-<h2>Daftar peserta</h2>@forelse($participants as $p)<details>
+<section class="card" data-search-table>
+<div class="table-tools"><label><span class="sr-only">Cari peserta</span><input type="search" data-search-input placeholder="Cari nama, nomor, atau mapel…"></label><span class="small muted" data-search-count></span></div><p class="table-empty" data-search-empty hidden>Tidak ada data yang cocok. Coba kata lain.</p>
+<h2>Daftar peserta</h2>@forelse($participants as $p)<details data-search-entry>
 <summary>{{ $p->participant_number }} · {{ $p->name }} <span class="muted">{{ $p->school }}</span>
 </summary>
 <form method="post" action="/admin/participants/{{ $p->id }}">@csrf @method('PUT')<div class="form-grid">
