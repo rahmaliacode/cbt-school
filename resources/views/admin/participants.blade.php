@@ -1,6 +1,16 @@
 @extends('layout') @section('content')<p class="eyebrow">MASTER DATA</p>
 <h1>Peserta lomba</h1>
 <section class="card">
+<h2>Import siswa / peserta</h2>
+<p>Unduh template, isi data, lalu preview sebelum disimpan. Nomor peserta harus unik. Maksimal 5000 baris.</p>
+<a class="button secondary" href="/admin/participants/template">↓ Template Excel peserta</a>
+<form method="post" action="/admin/participants/preview" enctype="multipart/form-data">@csrf
+<label>File Excel / CSV<input type="file" name="file" accept=".xlsx,.xls,.csv" required></label>
+<button>Preview import</button></form>
+<details><summary>Atau paste tabel dari Excel</summary><form method="post" action="/admin/participants/preview">@csrf
+<label>Nomor Peserta | Nama | Asal Sekolah<textarea name="paste" rows="6" required placeholder="P-004&#9;Peserta Contoh&#9;SMP Contoh"></textarea></label><button>Preview paste</button></form></details>
+</section>
+<section class="card">
 <h2>Tambah peserta</h2>
 <form method="post" action="/admin/participants">@csrf<div class="form-grid">
 <label>Nomor peserta<input name="participant_number" required maxlength="50" placeholder="P-001">

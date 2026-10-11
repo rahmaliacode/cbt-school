@@ -24,7 +24,7 @@
 <td>
 <div class="actions">
 <a href="/admin/sessions/{{ $s->id }}/monitor">Monitor</a>
-<a href="/admin/sessions/{{ $s->id }}/results">Hasil</a>@if($s->status==='draft')<a href="/admin/sessions/{{ $s->id }}/edit">Ubah</a>
+<a href="/admin/sessions/{{ $s->id }}/results">Hasil</a>@if($s->status==='draft')<a href="/admin/sessions/{{ $s->id }}/edit">Pengaturan nilai</a>
 <form method="post" action="/admin/sessions/{{ $s->id }}/start" data-confirm="Mulai sesi sekarang? Konfigurasi dan soal akan dikunci.">@csrf<button class="small-button">Mulai</button>
 </form>@elseif($s->status==='running')<form method="post" action="/admin/sessions/{{ $s->id }}/end" data-confirm="Akhiri sesi? Semua jawaban peserta akan dikumpulkan dan dikunci.">@csrf<button class="danger small-button">Akhiri</button>
 </form>@endif</div>

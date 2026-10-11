@@ -23,6 +23,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('/subjects', [A::class, 'storeSubject']);
     Route::get('/participants', [A::class, 'participants']);
     Route::post('/participants', [A::class, 'storeParticipant']);
+    Route::get('/participants/template', [A::class, 'participantTemplate']);
+    Route::post('/participants/preview', [A::class, 'previewParticipants']);
+    Route::post('/participants/import', [A::class, 'commitParticipants']);
     Route::put('/participants/{participant}', [A::class, 'updateParticipant']);
     Route::delete('/participants/{participant}', [A::class, 'deleteParticipant']);
     Route::get('/questions', [A::class, 'questions']);
@@ -42,6 +45,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('/sessions/{examSession}/monitor', [A::class, 'monitor']);
     Route::get('/sessions/{examSession}/monitor-data', [A::class, 'monitorData']);
     Route::get('/sessions/{examSession}/results', [A::class, 'results']);
+    Route::post('/sessions/{examSession}/lock-results', [A::class, 'lockResults']);
+    Route::post('/sessions/{examSession}/unlock-results', [A::class, 'unlockResults']);
+    Route::get('/sessions/{examSession}/export-excel', [A::class, 'exportExcel']);
     Route::get('/sessions/{examSession}/export', [A::class, 'export']);
     Route::get('/attempts/{attempt}', [A::class, 'detail']);
     Route::post('/attempts/{attempt}/reset', [A::class, 'reset']);

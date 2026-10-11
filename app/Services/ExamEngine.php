@@ -168,14 +168,14 @@ class ExamEngine
             }
 
             return match ($tie) {
-                'correct_count' => $b->correct_count <=> $a->correct_count,'earliest_submit' => $a->attempt->submitted_at->getTimestamp() <=> $b->attempt->submitted_at->getTimestamp(),default => 0
+                'correct_count' => $b->correct_count <=> $a->correct_count,'earliest_submit' => ($a->attempt->submitted_at->getTimestamp() - $a->attempt->started_at->getTimestamp()) <=> ($b->attempt->submitted_at->getTimestamp() - $b->attempt->started_at->getTimestamp()),default => 0
             };
         })->values();
         $rank = 0;
         $previous = null;
         foreach ($rows as $i => $row) {
             $key = $row->total_score.'|'.match ($tie) {
-                'correct_count' => $row->correct_count,'earliest_submit' => $row->attempt->submitted_at->getTimestamp(),default => ''
+                'correct_count' => $row->correct_count,'earliest_submit' => $row->attempt->submitted_at->getTimestamp() - $row->attempt->started_at->getTimestamp(),default => ''
             };
             if ($key !== $previous) {
                 $rank = $i + 1;

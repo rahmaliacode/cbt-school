@@ -9,6 +9,7 @@ use App\Models\Question;
 use App\Models\Subject;
 use App\Models\User;
 use App\Services\ExamEngine;
+use App\Services\ParticipantImporter;
 use App\Services\QuestionImporter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class CbtTest extends TestCase
@@ -298,6 +300,7 @@ class CbtTest extends TestCase
         $ranked = $this->engine->leaderboard($s);
         $this->assertSame($a->id, $ranked[0]->attempt_id);
         $this->actingAs($this->admin());
+        $this->engine->endSession($s);
         $response = $this->get('/admin/sessions/'.$s->id.'/export')->assertOk();
         $csv = $response->streamedContent();
         $this->assertStringContainsString("'=Formula", $csv);
@@ -337,6 +340,8 @@ class CbtTest extends TestCase
         $this->get('/admin/questions/template')->assertOk();
         $this->engine->submit($a);
         $this->get('/finished')->assertOk()->assertDontSee('Skor total');
+        $this->get('/admin/attempts/'.$a->id)->assertForbidden();
+        $this->engine->endSession($s);
         $this->get('/admin/attempts/'.$a->id)->assertOk();
     }
 
@@ -379,6 +384,10 @@ class CbtTest extends TestCase
         $this->postJson('/exam/submit')->assertOk()->assertJson(['redirect' => '/finished']);
         $this->postJson('/exam/submit')->assertOk();
         $this->assertDatabaseCount('results', 1);
+        $this->get('/finished')->assertOk()->assertDontSee('Skor total');
+        $this->actingAs(User::where('is_admin', true)->first());
+        $this->post('/admin/sessions/'.$session->id.'/end')->assertRedirect();
+        $this->post('/admin/sessions/'.$session->id.'/lock-results')->assertRedirect();
         $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('4.00');
         $this->post('/logout');
         $this->post('/login', ['participant_number' => 'P-001', 'token' => 'FINAL123'])->assertSessionHasErrors();
@@ -392,5 +401,77 @@ class CbtTest extends TestCase
         $this->assertCount(5, $preview['rows'][0]['options']);
         $this->assertCount(1, $preview['errors']);
         $this->assertStringContainsString('duplikat', $preview['errors'][0]['message']);
+    }
+
+    public function test_participant_import_preview_commit_and_duplicate_rejection(): void
+    {
+        $this->actingAs($this->admin());
+        $this->get('/admin/participants/template')->assertOk();
+        $this->post('/admin/participants/preview', ['paste' => "Nomor Peserta\tNama\tAsal Sekolah\nP-009\tSiswa Contoh\tSMP Contoh"])
+            ->assertOk()->assertSee('Siswa Contoh')->assertSee('Simpan 1 peserta');
+        $this->assertDatabaseCount('participants', 0);
+        $this->post('/admin/participants/import')->assertRedirect('/admin/participants');
+        $this->assertDatabaseHas('participants', ['participant_number' => 'P-009', 'name' => 'Siswa Contoh']);
+        $this->postJson('/admin/participants/import')->assertUnprocessable();
+        $this->post('/admin/participants/preview', ['paste' => "P-010\tValid\tSMP\nP-009\tDuplicate\tSMP"])
+            ->assertOk()->assertSee('Nomor peserta duplikat')->assertDontSee('Simpan 1 peserta');
+        $this->postJson('/admin/participants/import')->assertUnprocessable();
+        $this->assertDatabaseCount('participants', 1);
+    }
+
+    public function test_participant_import_reads_excel_and_revalidates_before_atomic_commit(): void
+    {
+        $this->actingAs($this->admin());
+        $response = $this->get('/admin/participants/template')->assertOk();
+        $upload = UploadedFile::fake()->createWithContent('participants.xlsx', $response->streamedContent());
+        $this->post('/admin/participants/preview', ['file' => $upload])->assertOk()->assertSee('Peserta Contoh');
+        Participant::create(['participant_number' => 'P-004', 'name' => 'Added concurrently']);
+        $this->postJson('/admin/participants/import')->assertUnprocessable();
+        $this->assertDatabaseCount('participants', 1);
+        $preview = app(ParticipantImporter::class)->validateRows([['p-004', 'Duplicate', ''], ['P-005', '', '']]);
+        $this->assertCount(2, $preview['errors']);
+    }
+
+    public function test_score_publication_lock_and_unlock_require_correct_state_and_audit(): void
+    {
+        $s = $this->makeSession(['show_live_score' => false]);
+        $a = $this->attempt($s);
+        $this->engine->submit($a);
+        $this->actingAs($this->admin());
+        $this->get('/admin/sessions/'.$s->id.'/results')->assertOk()->assertDontSee('Nadira');
+        $this->get('/admin/sessions/'.$s->id.'/export')->assertForbidden();
+        $this->postJson('/admin/sessions/'.$s->id.'/lock-results')->assertUnprocessable();
+        $this->engine->endSession($s);
+        $this->get('/admin/sessions/'.$s->id.'/results')->assertOk()->assertSee('Nadira')->assertSee('DRAFT');
+        $this->post('/admin/sessions/'.$s->id.'/lock-results')->assertRedirect();
+        $this->assertNotNull($s->fresh()->results_locked_at);
+        $this->get('/admin/sessions/'.$s->id.'/results')->assertOk()->assertSee('FINAL');
+        $excel = $this->get('/admin/sessions/'.$s->id.'/export-excel')->assertOk()->streamedContent();
+        $path = tempnam(sys_get_temp_dir(), 'cbt-export');
+        file_put_contents($path, $excel);
+        $book = IOFactory::load($path);
+        unlink($path);
+        $this->assertSame(['Ranking', 'Configuration', 'Audit'], $book->getSheetNames());
+        $this->assertSame('Nadira', $book->getSheetByName('Ranking')->getCell('C2')->getValue());
+        $this->assertSame('FINAL', $book->getSheetByName('Configuration')->getCell('B3')->getValue());
+        $this->postJson('/admin/sessions/'.$s->id.'/unlock-results', ['reason' => 'x'])->assertUnprocessable();
+        $this->post('/admin/sessions/'.$s->id.'/unlock-results', ['reason' => 'Verifikasi ulang nilai'])->assertRedirect();
+        $this->assertNull($s->fresh()->results_locked_at);
+        $this->assertDatabaseHas('activity_logs', ['event' => 'results_unlocked']);
+    }
+
+    public function test_duration_tie_break_uses_elapsed_time_instead_of_absolute_submit_time(): void
+    {
+        $s = $this->makeSession(['tie_breaker' => 'earliest_submit']);
+        $a = $this->attempt($s);
+        $this->travel(10)->seconds();
+        $p = Participant::create(['participant_number' => 'P-002', 'name' => 'Later entrant']);
+        $s->participants()->attach($p);
+        $b = $this->engine->startAttempt($s, $p->id);
+        $this->travel(1)->seconds();
+        $this->engine->submit($a);
+        $this->travel(1)->seconds();
+        $this->engine->submit($b);
+        $this->assertSame($b->id, $this->engine->leaderboard($s)[0]->attempt_id);
     }
 }

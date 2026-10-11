@@ -14,11 +14,11 @@
 <option value="5" @selected(old('option_count',$session->option_count)==5)>5 opsi (A–E)</option>
 </select>
 </label>
-<label>Tie-breaker<select name="tie_breaker">@foreach(['none'=>'Nonaktif (peringkat seri)','correct_count'=>'Jumlah benar terbanyak','earliest_submit'=>'Waktu submit paling awal'] as $value=>$label)<option value="{{ $value }}" @selected(old('tie_breaker',$session->tie_breaker)===$value)>{{ $label }}</option>@endforeach</select>
+<label>Tie-breaker<select name="tie_breaker">@foreach(['none'=>'Nonaktif (peringkat seri)','correct_count'=>'Jumlah benar terbanyak','earliest_submit'=>'Durasi pengerjaan tercepat'] as $value=>$label)<option value="{{ $value }}" @selected(old('tie_breaker',$session->tie_breaker)===$value)>{{ $label }}</option>@endforeach</select>
 </label>
 </div>
 <fieldset>
-<legend>Pengaturan tambahan</legend>@foreach(['shuffle_questions'=>'Acak urutan soal','shuffle_options'=>'Acak urutan opsi','show_live_score'=>'Tampilkan skor kepada siswa setelah submit'] as $field=>$label)<label class="check">
+<legend>Pengaturan tambahan</legend>@foreach(['shuffle_questions'=>'Acak urutan soal','shuffle_options'=>'Acak urutan opsi','show_live_score'=>'Leaderboard panitia saat sesi berjalan (peserta yang sudah submit)'] as $field=>$label)<label class="check">
 <input type="checkbox" name="{{ $field }}" value="1" @checked(old($field,$session->$field))>{{ $label }}</label>@endforeach</fieldset>
 <p class="small muted">Monitor panitia selalu menyembunyikan skor selama peserta mengerjakan. Paket memakai N soal pertama menurut nomor; acak mengubah urutan paket, bukan memilih soal lain.</p>
 <fieldset>

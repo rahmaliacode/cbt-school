@@ -68,7 +68,7 @@ Scheduler memfinalisasi sesi habis waktu walaupun semua browser tertutup. Reques
 8. Detail hasil tersedia untuk attempt yang sudah submit. Leaderboard selama sesi masih berjalan adalah sementara dan hanya berisi attempt selesai. Export CSV dapat dibuka di Excel dan memakai data/peringkat yang sama. Tidak ada export PDF.
 9. Reset resmi tersedia di monitor untuk sesi yang masih berjalan. Memerlukan alasan dan konfirmasi; menghapus attempt beserta jawaban/hasil, menyimpan salinan di audit log, lalu memberi peserta kesempatan mulai dengan sisa waktu sesi.
 
-Pengaturan `show_live_score` berarti siswa dapat melihat **skor sendiri setelah submit**. Monitor tidak pernah menampilkan skor, termasuk jika pengaturan ini aktif. Siswa tidak mendapat kunci jawaban.
+Pengaturan `show_live_score` mengatur **leaderboard panitia**: on menampilkan peserta submit; off menahan nilai/detail/ekspor sampai sesi berakhir. Monitor selalu menyembunyikan jawaban dan skor. Hasil peserta baru tampil setelah panitia mengunci FINAL. Buka kembali hasil wajib alasan tercatat.
 
 ## Keamanan jawaban dan penilaian
 
@@ -78,7 +78,7 @@ Pengaturan `show_live_score` berarti siswa dapat melihat **skor sendiri setelah 
 - Jawaban pilihan dan ragu-ragu auto-save. Revisi lama tidak menimpa revisi terbaru. Gunakan satu tab browser per peserta; bila tab ganda terdeteksi lewat konflik revisi, sinkronkan ulang.
 - Jika LAN terputus, jawaban yang sudah tersimpan tetap ada. Perubahan yang belum terkonfirmasi antre di browser dan dicoba ulang saat LAN kembali. Hanya jawaban yang diterima server **sebelum deadline** dihitung. Jangan bergantung pada antrean lokal sebagai bukti jawaban telah tersimpan; periksa indikator.
 - Timer browser dihitung dari waktu server dengan jam monotonik browser dan disinkronkan tiap 10 detik. Server tetap berwenang walaupun JavaScript atau jam peserta dimanipulasi.
-- Peringkat memakai skor terbesar, lalu jumlah benar atau waktu submit sesuai konfigurasi. Nilai tie-breaker sama menghasilkan peringkat kompetisi yang sama (1, 1, 3).
+- Peringkat memakai skor terbesar, lalu jumlah benar atau durasi pengerjaan resmi sesuai konfigurasi. Nilai tie-breaker sama menghasilkan peringkat kompetisi yang sama (1, 1, 3).
 - Login admin memakai session auth + middleware admin; siswa memakai identitas peserta dalam session server. Semua mutasi memakai CSRF dan validasi server. Endpoint siswa menyaring kunci/skor. Token siswa dibatasi per sesi; nomor peserta/token adalah mekanisme akses sesuai spesifikasi, bukan password pribadi.
 - `activity_logs` mencatat mulai/akhir sesi, mulai attempt, submit/auto-submit, import, dan reset. Akses DB/server hanya untuk panitia tepercaya.
 
@@ -114,3 +114,9 @@ Sebelum lomba: simulasi beberapa peserta pada LAN tanpa internet, refresh di ten
 ## Struktur data
 
 `users`, `subjects`, `questions`, `answer_options`, `participants`, `exam_sessions`, `exam_session_participant`, `attempts`, `participant_answers`, `results`, `activity_logs`. Waktu disimpan UTC; tampilan waktu acara WIB. Skor menggunakan DECIMAL dua digit; konfigurasi tersimpan pada `configuration_snapshot`, paket soal pada `question_snapshot`.
+
+## Import peserta dan audit plan
+
+Import siswa: **Peserta → Template Excel peserta → Preview import → Simpan**. Header `Nomor Peserta | Nama | Asal Sekolah`; nomor harus unik. Excel/CSV/paste didukung. Preview tidak menulis database.
+
+Lihat [PLAN_REVIEW.md](PLAN_REVIEW.md) untuk alur dan gap terhadap PDF. Export XLSX memiliki sheet Ranking/Configuration/Audit; PDF melalui cetak browser/Save as PDF. Setelah update jalankan `php artisan migrate` untuk kolom kunci hasil.

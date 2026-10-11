@@ -800,3 +800,5 @@ dialog::backdrop {
         gap: 0;
     }
 }
+
+@media print { .sidebar, .actions, button, .button, form {display:none!important} .admin-main{margin:0!important;padding:0!important} html,body{background:white} .card{box-shadow:none;border:0;padding:0} table{font-size:11px} h1{font-size:24px} }

@@ -8,6 +8,7 @@ use App\Models\Participant;
 use App\Models\Question;
 use App\Models\Subject;
 use App\Services\ExamEngine;
+use App\Services\ParticipantImporter;
 use App\Services\QuestionImporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +67,56 @@ class AdminController extends Controller
     public function participants()
     {
         return view('admin.participants', ['participants' => Participant::orderBy('participant_number')->get()]);
+    }
+
+    public function participantTemplate()
+    {
+        return response()->streamDownload(function () {
+            $book = new Spreadsheet;
+            $book->getActiveSheet()->fromArray([ParticipantImporter::HEADERS, ['P-004', 'Peserta Contoh', 'SMP Contoh']]);
+            foreach (range('A', 'C') as $col) {
+                $book->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new Xlsx($book))->save('php://output');
+        }, 'participant-template.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public function previewParticipants(Request $r, ParticipantImporter $importer)
+    {
+        $r->session()->forget('participant_import');
+        if ($r->hasFile('file')) {
+            $r->validate(['file' => 'required|file|mimes:xlsx,xls,csv|max:10240']);
+            try {
+                $preview = $importer->file($r->file('file')->getRealPath());
+            } catch (ValidationException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                return back()->withErrors(['file' => 'File tidak dapat dibaca. Gunakan template peserta.']);
+            }
+        } else {
+            $data = $r->validate(['paste' => 'required|string|max:2000000']);
+            $rows = array_map(fn ($line) => str_getcsv($line, "\t", '"', ''), preg_split('/\r?\n/', trim($data['paste'])));
+            $hasHeader = ($rows[0] ?? []) === ParticipantImporter::HEADERS;
+            if ($hasHeader) {
+                array_shift($rows);
+            }
+            $preview = $importer->validateRows($rows, $hasHeader ? 2 : 1);
+        }
+        if (! $preview['errors']) {
+            $r->session()->put('participant_import', $preview['rows']);
+        }
+
+        return view('admin.participant-import', compact('preview'));
+    }
+
+    public function commitParticipants(Request $r, ParticipantImporter $importer, ExamEngine $engine)
+    {
+        $rows = $r->session()->pull('participant_import');
+        $engine->require(is_array($rows) && count($rows) > 0, 'Preview peserta belum valid atau sudah dipakai.');
+        $importer->commit($rows);
+        $engine->log('participants_imported', ['count' => count($rows)]);
+
+        return redirect('/admin/participants')->with('success', count($rows).' peserta berhasil diimpor.');
     }
 
     public function storeParticipant(Request $r)
@@ -252,7 +303,9 @@ class AdminController extends Controller
     {
         $engine->expire();
 
-        return view('admin.results', ['session' => $examSession, 'results' => $engine->leaderboard($examSession)]);
+        $examSession->refresh();
+
+        return view('admin.results', ['session' => $examSession, 'scoresVisible' => $examSession->status === 'ended' || ($examSession->configuration_snapshot['show_live_score'] ?? false), 'results' => ($examSession->status === 'ended' || ($examSession->configuration_snapshot['show_live_score'] ?? false)) ? $engine->leaderboard($examSession) : collect()]);
     }
 
     public function detail(Attempt $attempt, ExamEngine $engine)
@@ -260,6 +313,7 @@ class AdminController extends Controller
         $engine->expire();
         $attempt->refresh();
         abort_if($attempt->status === 'in_progress', 403, 'Hasil belum tersedia.');
+        abort_unless($attempt->examSession->status === 'ended' || ($attempt->examSession->configuration_snapshot['show_live_score'] ?? false), 403, 'Skor live dimatikan. Tunggu sesi berakhir.');
 
         return view('admin.detail', compact('attempt'));
     }
@@ -267,6 +321,8 @@ class AdminController extends Controller
     public function export(ExamSession $examSession, ExamEngine $engine)
     {
         $engine->expire();
+        $examSession->refresh();
+        abort_unless($examSession->status === 'ended' || ($examSession->configuration_snapshot['show_live_score'] ?? false), 403, 'Nilai tersedia setelah sesi berakhir; skor live sedang dimatikan.');
         $rows = $engine->leaderboard($examSession);
 
         return response()->streamDownload(function () use ($rows) {
@@ -279,6 +335,69 @@ class AdminController extends Controller
                 fputcsv($out, [$r->rank, $safe($a->participant->participant_number), $safe($a->participant->name), $r->correct_count, $r->incorrect_count, $r->blank_count, $r->total_score, $a->started_at->toIso8601String(), $a->submitted_at->toIso8601String(), $a->status]);
             }fclose($out);
         }, 'results-'.$examSession->id.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportExcel(ExamSession $examSession, ExamEngine $engine)
+    {
+        $engine->expire();
+        $examSession->refresh();
+        abort_unless($examSession->status === 'ended' || ($examSession->configuration_snapshot['show_live_score'] ?? false), 403, 'Skor live dimatikan.');
+        $rows = $engine->leaderboard($examSession);
+        $config = $examSession->configuration_snapshot ?? [];
+        $audit = DB::table('activity_logs')->orderBy('id')->get()->filter(fn ($a) => (json_decode($a->context, true)['exam_session_id'] ?? null) === $examSession->id);
+
+        return response()->streamDownload(function () use ($rows, $config, $audit, $examSession) {
+            $book = new Spreadsheet;
+            $sheet = $book->getActiveSheet()->setTitle('Ranking');
+            $sheet->fromArray([['Rank', 'Participant number', 'Name', 'School', 'Correct', 'Wrong', 'Blank', 'Score']]);
+            $safe = fn ($v) => preg_match('/^[=+@\-]/', (string) $v) ? "'".$v : $v;
+            foreach ($rows as $i => $row) {
+                $p = $row->attempt->participant;
+                $sheet->fromArray([[$row->rank, $safe($p->participant_number), $safe($p->name), $safe($p->school), $row->correct_count, $row->incorrect_count, $row->blank_count, (float) $row->total_score]], null, 'A'.($i + 2));
+            }
+            $metadata = [['Parameter', 'Value'], ['Session', $safe($examSession->name)], ['Result status', $examSession->results_locked_at ? 'FINAL' : 'DRAFT'], ['Generated at', now()->toIso8601String()], ['Operator', $safe(Auth::user()->name)]];
+            foreach ($config as $key => $value) {
+                $metadata[] = [$key, is_bool($value) ? ($value ? 'on' : 'off') : (string) $value];
+            }
+            $book->createSheet()->setTitle('Configuration')->fromArray($metadata);
+            $book->createSheet()->setTitle('Audit')->fromArray(array_merge([['Time', 'Action', 'Reason']], $audit->map(fn ($a) => [(string) $a->created_at, $a->event, $safe(json_decode($a->context, true)['reason'] ?? '')])->all()));
+            foreach ($book->getAllSheets() as $tab) {
+                $tab->getStyle('1:1')->getFont()->setBold(true);
+                foreach (range('A', 'H') as $column) {
+                    $tab->getColumnDimension($column)->setAutoSize(true);
+                }
+            }
+            $book->setActiveSheetIndex(0);
+            (new Xlsx($book))->save('php://output');
+        }, 'results-'.$examSession->id.'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public function lockResults(ExamSession $examSession, ExamEngine $engine)
+    {
+        $engine->expire();
+        DB::transaction(function () use ($examSession, $engine) {
+            $s = ExamSession::lockForUpdate()->findOrFail($examSession->id);
+            $engine->require($s->status === 'ended' && ! $s->attempts()->where('status', 'in_progress')->exists(), 'Akhiri sesi dan verifikasi attempt dahulu.');
+            if (! $s->results_locked_at) {
+                $s->update(['results_locked_at' => now()]);
+                $engine->log('results_locked', ['exam_session_id' => $s->id]);
+            }
+        });
+
+        return back()->with('success', 'Hasil dikunci sebagai FINAL.');
+    }
+
+    public function unlockResults(Request $r, ExamSession $examSession, ExamEngine $engine)
+    {
+        $data = $r->validate(['reason' => 'required|string|min:5|max:500']);
+        DB::transaction(function () use ($examSession, $engine, $data) {
+            $s = ExamSession::lockForUpdate()->findOrFail($examSession->id);
+            $engine->require((bool) $s->results_locked_at, 'Hasil belum dikunci.');
+            $s->update(['results_locked_at' => null]);
+            $engine->log('results_unlocked', ['exam_session_id' => $s->id, 'reason' => $data['reason']]);
+        });
+
+        return back()->with('success', 'Hasil kembali berstatus DRAFT.');
     }
 
     public function reset(Request $r, Attempt $attempt, ExamEngine $engine)
