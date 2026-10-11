@@ -1,0 +1,48 @@
+<?php
+
+use App\Http\Controllers\AdminController as A;
+use App\Http\Controllers\StudentController as S;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', [S::class, 'login']);
+Route::post('/login', [S::class, 'authenticate'])->middleware('throttle:20,1');
+Route::get('/waiting', [S::class, 'waiting']);
+Route::post('/start', [S::class, 'start']);
+Route::get('/exam', [S::class, 'exam']);
+Route::get('/exam/state', [S::class, 'state']);
+Route::post('/exam/answer', [S::class, 'save']);
+Route::post('/exam/submit', [S::class, 'submit']);
+Route::get('/finished', [S::class, 'finished']);
+Route::post('/logout', [S::class, 'logout']);
+Route::get('/admin/login', [A::class, 'login'])->name('admin.login');
+Route::post('/admin/login', [A::class, 'authenticate'])->middleware('throttle:10,1');
+Route::prefix('admin')->middleware('admin')->group(function () {
+    Route::get('/', [A::class, 'dashboard']);
+    Route::post('/logout', [A::class, 'logout']);
+    Route::get('/subjects', [A::class, 'subjects']);
+    Route::post('/subjects', [A::class, 'storeSubject']);
+    Route::get('/participants', [A::class, 'participants']);
+    Route::post('/participants', [A::class, 'storeParticipant']);
+    Route::put('/participants/{participant}', [A::class, 'updateParticipant']);
+    Route::delete('/participants/{participant}', [A::class, 'deleteParticipant']);
+    Route::get('/questions', [A::class, 'questions']);
+    Route::post('/questions', [A::class, 'storeQuestion']);
+    Route::get('/questions/template', [A::class, 'template']);
+    Route::post('/questions/preview', [A::class, 'preview']);
+    Route::post('/questions/import', [A::class, 'commitImport']);
+    Route::put('/questions/{question}', [A::class, 'updateQuestion']);
+    Route::delete('/questions/{question}', [A::class, 'deleteQuestion']);
+    Route::get('/sessions', [A::class, 'sessions']);
+    Route::get('/sessions/create', [A::class, 'sessionForm']);
+    Route::post('/sessions', [A::class, 'saveSession']);
+    Route::get('/sessions/{examSession}/edit', [A::class, 'sessionForm']);
+    Route::put('/sessions/{examSession}', [A::class, 'saveSession']);
+    Route::post('/sessions/{examSession}/start', [A::class, 'startSession']);
+    Route::post('/sessions/{examSession}/end', [A::class, 'endSession']);
+    Route::get('/sessions/{examSession}/monitor', [A::class, 'monitor']);
+    Route::get('/sessions/{examSession}/monitor-data', [A::class, 'monitorData']);
+    Route::get('/sessions/{examSession}/results', [A::class, 'results']);
+    Route::get('/sessions/{examSession}/export', [A::class, 'export']);
+    Route::get('/attempts/{attempt}', [A::class, 'detail']);
+    Route::post('/attempts/{attempt}/reset', [A::class, 'reset']);
+});

@@ -1,0 +1,73 @@
+@extends('layout') @section('title','Ujian · CBT Lomba') @section('content')<div id="exam-app" data-attempt="{{ $attempt->id }}">
+<header class="exam-header">
+<div>
+<span class="eyebrow">CBT LOMBA</span>
+<h2>{{ $attempt->examSession->name }}</h2>
+</div>
+<div>{{ $attempt->participant->name }} / {{ $attempt->participant->participant_number }}</div>
+<time id="timer" aria-label="Sisa waktu">--:--:--</time>
+</header>
+<div class="exam-columns">
+<section class="question-panel">
+<div class="question-top">
+<p id="question-number" class="eyebrow">Memuat soal…</p>
+<span id="save-status" role="status" aria-live="polite">Menghubungkan ke server…</span>
+</div>
+<p id="question-text" class="question-text">
+</p>
+<fieldset id="options">
+<legend class="sr-only">Pilih jawaban</legend>
+</fieldset>
+<div id="network-warning" class="notice error" hidden>Jawaban belum tersimpan ke server. Periksa koneksi LAN lalu <button type="button" id="retry-save">Coba simpan lagi</button>. Jangan tutup browser.</div>
+<div class="exam-actions">
+<button id="previous" class="secondary" type="button">← Sebelumnya</button>
+<button id="flag" class="warning" type="button">Tandai ragu-ragu</button>
+<button id="next" type="button">Selanjutnya →</button>
+<button id="finish" class="danger" type="button">Selesai</button>
+</div>
+</section>
+<aside class="question-navigation">
+<h3>Navigasi soal</h3>
+<div id="question-grid" class="question-grid">
+</div>
+<div class="legend">
+<p>
+<i class="answered">
+</i> Sudah dijawab</p>
+<p>
+<i class="flagged">
+</i> Ragu-ragu</p>
+<p>
+<i>
+</i> Belum dijawab</p>
+<p>
+<i class="current">
+</i> Sedang dibuka</p>
+</div>
+<p id="progress" class="muted small">
+</p>
+</aside>
+</div>
+</div>
+<dialog id="submit-dialog">
+<div class="dialog-content">
+<p class="eyebrow">KONFIRMASI</p>
+<h2>Kumpulkan jawaban sekarang?</h2>
+<p>Setelah dikumpulkan, jawaban tidak dapat diubah.</p>
+<div class="stats three">
+<div>
+<strong id="summary-answered">0</strong>Terjawab</div>
+<div>
+<strong id="summary-blank">0</strong>Belum dijawab</div>
+<div>
+<strong id="summary-flagged">0</strong>Ragu-ragu</div>
+</div>
+<p id="submit-message" class="muted" role="status">
+</p>
+<div class="actions">
+<button class="secondary" id="cancel-submit" type="button">Kembali ke ujian</button>
+<button class="danger" id="confirm-submit" type="button">Yakin, kumpulkan</button>
+</div>
+</div>
+</dialog>@endsection @push('scripts')<script src="/assets/exam.js" defer>
+</script>@endpush
