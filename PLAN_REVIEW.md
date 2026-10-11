@@ -40,3 +40,5 @@ Master mapel → import siswa → import soal → sesi dan penilaian → ruang t
 
 - Gambar soal JPG/PNG/WebP: tersedia melalui unggah manual/edit setelah import, penyimpanan privat, snapshot dan pembesaran di ujian. Gambar pada opsi jawaban/import gambar tertanam Excel belum tersedia.
 - Ringkasan juara per mapel: tersedia dari sesi FINAL terpilih, semua juara seri ditampilkan.
+
+- Mode fokus browser tersedia: layar penuh, pembatasan navigasi biasa, peringatan keluar, audit fokus dan monitoring. Penguncian OS/kiosk/SEB belum tersedia.

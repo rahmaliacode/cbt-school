@@ -1,0 +1,26 @@
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), {webcrypto} = require('node:crypto');
+const path = require('node:path');
+const assetPath = fs.existsSync(path.join(__dirname,'../dist/assets/exam-guard.js')) ? path.join(__dirname,'../dist/assets/exam-guard.js') : path.join(__dirname,'../public/assets/exam-guard.js');
+const listeners = {}, store = new Map(), elements = {}, columns = {}, sent = [];
+const node = () => ({hidden:false,textContent:'',setAttribute(){},focus(){this.focused=true;}});
+const gate = node(); gate.querySelector = id => elements[id] ??= node();
+const app = {dataset:{attempt:'42'},querySelector:()=>columns};
+const add = (name, fn) => (listeners[name] ??= []).push(fn);
+const document = {visibilityState:'visible',fullscreenElement:null,getElementById:()=>app,createElement:()=>gate,querySelectorAll:()=>[],addEventListener:add,body:{append(){}},documentElement:{async requestFullscreen(){document.fullscreenElement={};for(const fn of listeners.fullscreenchange||[])fn();}},async exitFullscreen(){document.fullscreenElement=null;}};
+let mode = 'ok';
+const ctx = {document,Date,JSON,Map,Set,Uint8Array,crypto:{getRandomValues:a=>webcrypto.getRandomValues(a)},location:{href:'https://example.test/exam'},history:{entries:0,pushState(){this.entries++;}},localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setInterval(){},addEventListener:add,removeEventListener:(name,fn)=>listeners[name]=listeners[name].filter(f=>f!==fn),async cbtFetch(path,opts){assert.equal(path,'/exam/focus-events');if(mode==='offline')throw Error('offline');sent.push(...JSON.parse(opts.body).events);return {status:'in_progress'};}};ctx.window=ctx;
+const emit = (type,event={}) => {for(const fn of listeners[type]||[])fn(event);};
+const tick = () => new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+vm.runInNewContext(fs.readFileSync(assetPath,'utf8'),ctx);
+assert.equal(columns.inert,true);assert.equal(gate.hidden,false);await tick();assert(sent.some(e=>e.type==='exam_open'));assert(sent.every(e=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(e.id)));
+let prevented=false;emit('beforeunload',{preventDefault(){prevented=true;}});assert(prevented,'warn even with no pending answer');
+await elements['#focus-resume'].onclick();await tick();assert.equal(gate.hidden,true);assert.equal(columns.inert,false);
+document.fullscreenElement=null;emit('fullscreenchange');await tick();assert.equal(gate.hidden,false);assert(sent.some(e=>e.type==='fullscreen_exit'));
+await elements['#focus-resume'].onclick();document.visibilityState='hidden';emit('visibilitychange');await tick();assert(sent.some(e=>e.type==='page_hidden'));assert.equal(columns.inert,true);
+document.visibilityState='visible';await elements['#focus-resume'].onclick();let blocked=false;emit('click',{target:{closest:()=>({})},preventDefault(){blocked=true;},stopImmediatePropagation(){}});assert(blocked);await tick();assert(sent.some(e=>e.type==='navigation_blocked'));
+await elements['#focus-resume'].onclick();mode='offline';emit('keydown',{key:'F5',preventDefault(){}});await tick();assert(JSON.parse(store.get('cbt-focus-42')).some(e=>e.type==='shortcut_blocked'));
+ctx.CbtGuard.finish();assert.equal(gate.hidden,true);assert.equal(columns.inert,false);prevented=false;emit('beforeunload',{preventDefault(){prevented=true;}});assert.equal(prevented,false);blocked=false;emit('click',{target:{closest:()=>({})},preventDefault(){blocked=true;}});assert.equal(blocked,false,'normal navigation after confirmed finish');
+vm.runInNewContext(fs.readFileSync(assetPath,'utf8'),ctx);mode='ok';document.documentElement.requestFullscreen=async()=>{throw Error('Unsupported');};await elements['#focus-resume'].onclick();await tick();assert.equal(elements['#focus-fallback'].hidden,false);elements['#focus-fallback'].onclick();assert.equal(gate.hidden,true);assert.equal(columns.inert,false);ctx.CbtGuard.finish();
+console.log('PASS: fullscreen gate, exit/tab audit, active unload warning, link/reload restriction, offline audit queue, UUID on HTTP, release after finish.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

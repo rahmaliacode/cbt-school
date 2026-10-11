@@ -328,10 +328,11 @@ class AdminController extends Controller
         $engine->expire();
         $examSession->refresh();
         $attempts = $examSession->attempts()->withCount(['answers as answered_count' => fn ($q) => $q->whereNotNull('answer_option_id')])->get()->keyBy('participant_id');
-        $rows = $examSession->participants->map(function ($p) use ($attempts, $examSession) {
+        $focusSignals = DB::table('activity_logs')->where('event', 'exam.focus')->where('context->exam_session_id', $examSession->id)->get()->map(fn ($row) => json_decode($row->context, true))->filter(fn ($event) => in_array($event['type'] ?? '', ['fullscreen_exit', 'page_hidden', 'window_blur', 'navigation_blocked', 'shortcut_blocked']))->groupBy('attempt_id');
+        $rows = $examSession->participants->map(function ($p) use ($attempts, $examSession, $focusSignals) {
             $a = $attempts->get($p->id);
 
-            return ['id' => $a?->id, 'participant_number' => $p->participant_number, 'name' => $p->name, 'status' => $a?->status ?? 'not_started', 'progress' => ($a?->answered_count ?? 0).'/'.$examSession->question_count, 'remaining_seconds' => $a && $a->status === 'in_progress' ? max(0, now()->diffInSeconds($a->deadline_at, false)) : 0, 'started_at' => $a?->started_at?->toIso8601String(), 'submitted_at' => $a?->submitted_at?->toIso8601String(), 'connection' => $a ? ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(20)) ? 'Stabil' : ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(60)) ? 'Lambat' : 'Terputus')) : '—'];
+            return ['id' => $a?->id, 'participant_number' => $p->participant_number, 'name' => $p->name, 'status' => $a?->status ?? 'not_started', 'progress' => ($a?->answered_count ?? 0).'/'.$examSession->question_count, 'remaining_seconds' => $a && $a->status === 'in_progress' ? max(0, now()->diffInSeconds($a->deadline_at, false)) : 0, 'started_at' => $a?->started_at?->toIso8601String(), 'submitted_at' => $a?->submitted_at?->toIso8601String(), 'focus_signals' => $a ? ($focusSignals->get($a->id)?->count() ?? 0) : 0, 'connection' => $a ? ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(20)) ? 'Stabil' : ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(60)) ? 'Lambat' : 'Terputus')) : '—'];
         });
 
         return response()->json(['server_now' => now()->toIso8601String(), 'status' => $examSession->status, 'participants' => $rows]);

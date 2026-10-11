@@ -126,3 +126,11 @@ Lihat [PLAN_REVIEW.md](PLAN_REVIEW.md) untuk alur dan gap terhadap PDF. Export X
 Bank Soal mendukung satu gambar JPG/PNG/WebP per soal, maksimal 2 MB (6000 × 6000 piksel). Import Excel tetap memakai template teks; lampirkan gambar melalui edit soal setelah import, sebelum sesi dimulai. Peserta dapat memperbesar gambar. Gambar disimpan privat di `storage/app/private/question-images`, diberikan hanya melalui akses admin atau peserta dengan attempt aktif, dan disalin sebagai referensi tetap ke snapshot sesi. Sertakan folder gambar saat backup bersama database; tidak perlu `storage:link`. Jalankan `php artisan migrate` setelah memperbarui aplikasi.
 
 Menu Juara per Mapel dan dashboard menampilkan peringkat 1 dari satu sesi FINAL per mapel, dengan nama peserta, sekolah, poin, sesi dan aturan tie-break. Default adalah sesi terakhir dikunci; panitia bisa memilih sesi FINAL lain. Semua peserta seri ditampilkan bersama. Hasil DRAFT tidak masuk ringkasan.
+
+### Mode fokus ujian
+
+Peserta mengaktifkan layar penuh melalui tombol sebelum membuka soal. Jika layar penuh tidak didukung/ditolak browser, peserta dapat melanjutkan dengan pengawasan panitia dan kondisi ini dicatat. Selama attempt aktif, tautan keluar dan navigasi Back biasa dibatasi, shortcut reload diperingatkan, serta browser diminta menampilkan konfirmasi tutup/reload. Setelah submit terkonfirmasi atau server menyatakan selesai, pembatasan dilepas. Logout aktif diarahkan kembali ke ujian.
+
+Perpindahan tab, kehilangan fokus jendela, keluar layar penuh dan upaya navigasi dicatat melalui endpoint beridentitas peserta, idempotent per UUID, maksimal 500 catatan per attempt. Antrean maksimal 100 catatan lokal mencoba kembali saat LAN tersedia. Monitor menampilkan jumlah sinyal untuk ditinjau; tidak ada pengurangan skor atau diskualifikasi otomatis. Catatan dari JavaScript dapat hilang/dimanipulasi dan bukan bukti kecurangan.
+
+Website biasa tidak dapat melarang Alt+Tab, menutup aplikasi, membuka perangkat lain, atau menjamin dialog keluar pada semua browser/mobile. Untuk penguncian perangkat, siapkan kiosk/MDM atau Safe Exam Browser di luar aplikasi; integrasi SEB belum disediakan. Uji manual browser dan komputer lab sebelum lomba.

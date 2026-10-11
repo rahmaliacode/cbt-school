@@ -64,5 +64,5 @@
 <button class="danger" id="confirm-submit" type="button">Yakin, kumpulkan</button>
 </div>
 </div>
-</dialog>@endsection @push('scripts')<script src="/assets/exam.js" defer>
+</dialog>@endsection @push('scripts')<script src="/assets/exam-guard.js" defer></script><script src="/assets/exam.js" defer>
 </script>@endpush

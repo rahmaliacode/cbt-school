@@ -10,13 +10,22 @@ use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
-    public function login()
+    private function activeAttempt(Request $r): bool
     {
+        return $r->session()->has('participant_id') && $r->session()->has('exam_session_id') && Attempt::where('participant_id', $r->session()->get('participant_id'))->where('exam_session_id', $r->session()->get('exam_session_id'))->where('status', 'in_progress')->exists();
+    }
+
+    public function login(Request $r, ExamEngine $engine)
+    {
+        $engine->expire();
+        if ($this->activeAttempt($r)) return redirect('/exam');
         return view('student.login');
     }
 
     public function authenticate(Request $r, ExamEngine $engine)
     {
+        $engine->expire();
+        if ($this->activeAttempt($r)) return redirect('/exam');
         $data = $r->validate(['participant_number' => 'required|string', 'token' => 'required|string']);
         $s = ExamSession::where('token', $data['token'])->first();
         $p = Participant::where('participant_number', $data['participant_number'])->first();
@@ -48,6 +57,7 @@ class StudentController extends Controller
     public function waiting(Request $r, ExamEngine $engine)
     {
         $engine->expire();
+        if ($this->activeAttempt($r)) return redirect('/exam');
         [$participant,$session] = $this->identity($r);
         $attempt = Attempt::where('participant_id', $participant->id)->where('exam_session_id', $session->id)->first();
 
@@ -92,6 +102,29 @@ class StudentController extends Controller
         return response()->json(['status' => $a->status, 'server_now' => now()->getTimestampMs(), 'deadline_at' => $a->deadline_at->getTimestampMs(), 'questions' => $safe, 'answers' => $a->answers()->get(['question_id', 'answer_option_id', 'is_flagged', 'revision'])]);
     }
 
+    public function focusEvents(Request $r, ExamEngine $engine)
+    {
+        $data = $r->validate(['events' => 'required|array|min:1|max:20', 'events.*.id' => 'required|uuid', 'events.*.type' => 'required|in:exam_open,fullscreen_enter,fullscreen_exit,fullscreen_unavailable,supervised_mode,page_hidden,window_blur,navigation_blocked,shortcut_blocked']);
+        $engine->expire();
+        $identity = $this->attempt($r);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($identity, $data, $engine) {
+            $session = ExamSession::lockForUpdate()->findOrFail($identity->exam_session_id);
+            $attempt = Attempt::lockForUpdate()->findOrFail($identity->id);
+            if ($session->status !== 'running' || $attempt->status !== 'in_progress') {
+                return response()->json(['status' => $attempt->status, 'accepted' => 0]);
+            }
+            $query = \Illuminate\Support\Facades\DB::table('activity_logs')->where('event', 'exam.focus')->where('context->attempt_id', $attempt->id);
+            $count = $query->count(); $accepted = 0;
+            foreach ($data['events'] as $event) {
+                if ($count >= 500) break;
+                if ((clone $query)->where('context->event_id', $event['id'])->exists()) continue;
+                $engine->log('exam.focus', ['attempt_id' => $attempt->id, 'exam_session_id' => $session->id, 'participant_id' => $attempt->participant_id, 'event_id' => $event['id'], 'type' => $event['type']]);
+                $count++; $accepted++;
+            }
+            return response()->json(['status' => $attempt->status, 'accepted' => $accepted]);
+        });
+    }
+
     public function image(Request $r, int $questionId, ExamEngine $engine)
     {
         $engine->expire();
@@ -127,8 +160,12 @@ class StudentController extends Controller
         return view('student.finished', compact('attempt'));
     }
 
-    public function logout(Request $r)
+    public function logout(Request $r, ExamEngine $engine)
     {
+        $engine->expire();
+        if ($this->activeAttempt($r)) {
+            return redirect('/exam')->with('success', 'Kumpulkan jawaban sebelum keluar dari ujian.');
+        }
         $r->session()->forget(['participant_id', 'exam_session_id']);
         $r->session()->regenerateToken();
 

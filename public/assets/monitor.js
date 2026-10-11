@@ -49,6 +49,7 @@
                         : "—";
                 cell(tr, time(p.started_at) + " / " + time(p.submitted_at));
                 cell(tr, p.connection);
+                cell(tr, p.focus_signals ? p.focus_signals + ' catatan · tinjau' : '—');
                 const td = cell(tr, "");
                 if (p.id && data.status === "running") {
                     const button = document.createElement("button");

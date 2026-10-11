@@ -13,6 +13,7 @@
 </div>
 <div class="score-rule">Benar <b>{{ $session->correct_score }}</b> · Salah <b>{{ $session->incorrect_score }}</b> · Kosong <b>{{ $session->blank_score }}</b>
 </div>
+<p class="notice">Selama ujian, gunakan layar penuh dan tetap di halaman soal. Perpindahan tab/jendela dicatat untuk ditinjau panitia.</p>
 <p class="muted">Batas waktu berlaku untuk seluruh sesi. Peserta yang mulai terlambat mendapat sisa waktu sesi. Jawaban disimpan otomatis setiap kali memilih opsi.</p>@if($attempt && $attempt->status !== 'in_progress')<a class="button wide" href="/finished">Lihat konfirmasi selesai</a>@else<form action="/start" method="post">@csrf<button class="wide" @disabled($session->status!=='running')>{{ $attempt?'Lanjutkan ujian':'Mulai ujian' }}</button>
 </form>@endif<form action="/logout" method="post">@csrf<button class="secondary wide">Keluar</button>
 </form>

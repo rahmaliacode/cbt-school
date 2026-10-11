@@ -11,6 +11,7 @@ Route::post('/start', [S::class, 'start']);
 Route::get('/exam', [S::class, 'exam']);
 Route::get('/exam/media/{questionId}', [S::class, 'image'])->whereNumber('questionId');
 Route::get('/exam/state', [S::class, 'state']);
+Route::post('/exam/focus-events', [S::class, 'focusEvents'])->middleware('throttle:120,1');
 Route::post('/exam/answer', [S::class, 'save']);
 Route::post('/exam/submit', [S::class, 'submit']);
 Route::get('/finished', [S::class, 'finished']);

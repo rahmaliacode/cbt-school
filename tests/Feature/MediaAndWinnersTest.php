@@ -61,4 +61,31 @@ class MediaAndWinnersTest extends TestCase
         $s->update(['results_locked_at' => null]);
         $this->assertSame($later->id, $summary->get([$s->subject_id => $s->id])->first()['session']->id);
     }
+    public function test_focus_audit_is_scoped_idempotent_and_does_not_change_results(): void
+    {
+        $s = $this->setupSession(); $engine = app(ExamEngine::class); $engine->startSession($s); $s->refresh();
+        $p = $s->participants->first(); $a = $engine->startAttempt($s, $p->id);
+        $payload = ['events' => [['id' => 'c4d6e28b-6492-4b59-88b6-2598e58df6f9', 'type' => 'page_hidden']]];
+        $this->postJson('/exam/focus-events', $payload)->assertUnauthorized();
+        $this->withSession(['participant_id' => $p->id, 'exam_session_id' => $s->id])->postJson('/exam/focus-events', $payload)->assertOk()->assertJsonPath('accepted', 1);
+        $this->postJson('/exam/focus-events', $payload)->assertJsonPath('accepted', 0);
+        $event = json_decode(\Illuminate\Support\Facades\DB::table('activity_logs')->where('event', 'exam.focus')->first()->context, true);
+        $this->assertSame($a->id, $event['attempt_id']); $this->assertSame($p->id, $event['participant_id']);
+        $this->postJson('/exam/focus-events', ['events' => [['id' => $payload['events'][0]['id'], 'type' => 'tampered']]])->assertUnprocessable();
+        $this->post('/logout')->assertRedirect('/exam');
+        $this->get('/')->assertRedirect('/exam');
+        $this->get('/waiting')->assertRedirect('/exam');
+        $this->post('/login', ['participant_number' => 'P2', 'token' => $s->token])->assertRedirect('/exam');
+        $this->assertSame($p->id, session('participant_id'));
+        $admin = User::forceCreate(['name' => 'Admin', 'email' => 'focus@example.test', 'password' => 'secret', 'is_admin' => true]);
+        $this->actingAs($admin)->getJson('/admin/sessions/'.$s->id.'/monitor-data')->assertOk()->assertJsonPath('participants.0.focus_signals', 1);
+        $other = $s->participants->last();
+        $this->withSession(['participant_id' => $other->id])->postJson('/exam/focus-events', $payload + ['attempt_id' => $a->id])->assertNotFound();
+        $this->withSession(['participant_id' => $p->id]);
+        $engine->submit($a); $score = $a->refresh()->result->total_score;
+        $this->postJson('/exam/focus-events', ['events' => [['id' => 'fe7273ea-47dd-486f-a529-74cf2ee9a856', 'type' => 'window_blur']]])->assertOk()->assertJsonPath('accepted', 0);
+        $this->assertSame($score, $a->refresh()->result->total_score);
+        $this->assertDatabaseCount('results', 1);
+    }
+
 }

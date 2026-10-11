@@ -128,6 +128,7 @@
                 });
                 if (data.status !== "in_progress") {
                     expired = true;
+                    window.CbtGuard?.finish();
                     location.href = "/finished";
                     return;
                 }
@@ -151,6 +152,8 @@
             const before = performance.now();
             const data = await cbtFetch("/exam/state");
             if (data.status !== "in_progress") {
+                expired = true;
+                window.CbtGuard?.finish();
                 location.href = "/finished";
                 return;
             }
@@ -205,6 +208,7 @@
             try {
                 localStorage.removeItem(key);
             } catch {}
+            window.CbtGuard?.finish();
             location.href = "/finished";
         } catch (e) {
             el("submit-message").textContent =
@@ -244,7 +248,7 @@
     };
     window.addEventListener("online", flush);
     window.addEventListener("beforeunload", (e) => {
-        if (Object.keys(pending).length) {
+        if (Object.keys(pending).length && !expired && !submitting) {
             e.preventDefault();
             e.returnValue = "";
         }
