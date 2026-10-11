@@ -61,25 +61,21 @@
             el("options").append(label);
         });
         el("question-grid").replaceChildren();
-        let answered = 0,
-            flagged = 0;
+        let answered = 0;
         questions.forEach((q, i) => {
             const a = pending[q.id] || answers[q.id] || {};
             if (a.answer_option_id) answered++;
-            if (a.is_flagged) flagged++;
             const b = document.createElement("button");
             b.type = "button";
             b.textContent = i + 1;
             b.className =
                 (a.answer_option_id ? "answered " : "") +
-                (a.is_flagged ? "flagged " : "") +
                 (index === i ? "current" : "");
             b.setAttribute(
                 "aria-label",
                 "Soal " +
                     (i + 1) +
-                    (a.answer_option_id ? ", sudah dijawab" : "") +
-                    (a.is_flagged ? ", ragu-ragu" : ""),
+                    (a.answer_option_id ? ", sudah dijawab" : ""),
             );
             b.setAttribute("aria-current", index === i ? "true" : "false");
             b.onclick = () => {
@@ -88,22 +84,15 @@
             };
             el("question-grid").append(b);
         });
-        el("flag").textContent = a.is_flagged
-            ? "Batalkan ragu-ragu"
-            : "Tandai ragu-ragu";
-        el("flag").disabled = expired || submitting;
         el("previous").disabled = index === 0;
         el("next").disabled = index === questions.length - 1;
         el("progress").textContent =
             answered +
             "/" +
             questions.length +
-            " terjawab · " +
-            flagged +
-            " ragu-ragu";
+            " terjawab";
         el("summary-answered").textContent = answered;
         el("summary-blank").textContent = questions.length - answered;
-        el("summary-flagged").textContent = flagged;
     }
     function edit(changes) {
         if (expired || submitting) return;
@@ -117,6 +106,7 @@
         pending[id] = {
             ...current,
             ...changes,
+            is_flagged: false,
             question_id: id,
             revision: current.revision + 1,
         };
@@ -239,14 +229,6 @@
             render();
         }
     };
-    el("flag").onclick = () =>
-        edit({
-            is_flagged: !(
-                pending[questions[index].id] ||
-                answers[questions[index].id] ||
-                {}
-            ).is_flagged,
-        });
     el("finish").disabled = true;
     el("finish").onclick = () => {
         render();

@@ -75,7 +75,7 @@ Pengaturan `show_live_score` mengatur **leaderboard panitia**: on menampilkan pe
 - Unique constraint `(exam_session_id, participant_id)` memastikan satu attempt. Unique jawaban per attempt/soal dan unique result per attempt.
 - Operasi memakai transaksi dan kunci baris dengan urutan sesi → attempt; submit berulang mengembalikan hasil yang sudah ada. Request jawaban setelah deadline ditolak/difinalisasi server.
 - Urutan soal/opsi diacak sekali lalu disimpan. Penilaian menggunakan ID opsi asli, bukan huruf tampilan. Snapshot mencegah perubahan bank soal mengubah hasil.
-- Jawaban pilihan dan ragu-ragu auto-save. Revisi lama tidak menimpa revisi terbaru. Gunakan satu tab browser per peserta; bila tab ganda terdeteksi lewat konflik revisi, sinkronkan ulang.
+- Jawaban pilihan auto-save. Revisi lama tidak menimpa revisi terbaru. Gunakan satu tab browser per peserta; bila tab ganda terdeteksi lewat konflik revisi, sinkronkan ulang.
 - Jika LAN terputus, jawaban yang sudah tersimpan tetap ada. Perubahan yang belum terkonfirmasi antre di browser dan dicoba ulang saat LAN kembali. Hanya jawaban yang diterima server **sebelum deadline** dihitung. Jangan bergantung pada antrean lokal sebagai bukti jawaban telah tersimpan; periksa indikator.
 - Timer browser dihitung dari waktu server dengan jam monotonik browser dan disinkronkan tiap 10 detik. Server tetap berwenang walaupun JavaScript atau jam peserta dimanipulasi.
 - Peringkat memakai skor terbesar, lalu jumlah benar atau durasi pengerjaan resmi sesuai konfigurasi. Nilai tie-breaker sama menghasilkan peringkat kompetisi yang sama (1, 1, 3).

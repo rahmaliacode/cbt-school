@@ -610,12 +610,6 @@ details[open] summary {
     border-color: #6abf9c;
     color: #086b4d;
 }
-.question-grid .flagged,
-.legend .flagged {
-    background: #fff0c8;
-    border-color: #f0b73f;
-    color: #785100;
-}
 .question-grid .current,
 .legend .current {
     outline: 2px solid #245ce5;

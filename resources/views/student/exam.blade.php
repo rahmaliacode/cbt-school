@@ -22,7 +22,6 @@
 <div id="network-warning" class="notice error" hidden>Jawaban belum tersimpan ke server. Periksa koneksi LAN lalu <button type="button" id="retry-save">Coba simpan lagi</button>. Jangan tutup browser.</div>
 <div class="exam-actions">
 <button id="previous" class="secondary" type="button">← Sebelumnya</button>
-<button id="flag" class="warning" type="button">Tandai ragu-ragu</button>
 <button id="next" type="button">Selanjutnya →</button>
 <button id="finish" class="danger" type="button">Selesai</button>
 </div>
@@ -35,9 +34,6 @@
 <p>
 <i class="answered">
 </i> Sudah dijawab</p>
-<p>
-<i class="flagged">
-</i> Ragu-ragu</p>
 <p>
 <i>
 </i> Belum dijawab</p>
@@ -55,13 +51,11 @@
 <p class="eyebrow">KONFIRMASI</p>
 <h2>Kumpulkan jawaban sekarang?</h2>
 <p>Setelah dikumpulkan, jawaban tidak dapat diubah.</p>
-<div class="stats three">
+<div class="stats">
 <div>
 <strong id="summary-answered">0</strong>Terjawab</div>
 <div>
 <strong id="summary-blank">0</strong>Belum dijawab</div>
-<div>
-<strong id="summary-flagged">0</strong>Ragu-ragu</div>
 </div>
 <p id="submit-message" class="muted" role="status">
 </p>
