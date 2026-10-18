@@ -1,6 +1,6 @@
 @extends('layout') @section('content')
 <div class="crumb">CBT School <span>/</span> Dashboard panitia</div>
-<div class="page-heading"><div><p class="eyebrow">RUANG KONTROL LOMBA</p><h1>Dashboard panitia</h1><p class="muted">Lihat kesiapan sesi, jalankan ujian, dan verifikasi hasil dari satu tempat.</p></div><a href="/admin/sessions/create" class="button">+ Buat sesi</a></div>
+<div class="page-heading"><div><p class="eyebrow">RUANG KONTROL LOMBA</p><h1>Lomba 10 (sepuluh) Mata Pelajaran Jenjang SMP Se- Kabupaten Aceh Tenggara Tahun 2026</h1><p class="muted">Dinas Pendidikan dan Kebudayaan Kabupaten Aceh Tenggara</p></div><a href="/admin/sessions/create" class="button">+ Buat sesi</a></div>
 @if($focus)
 @php($readyCount=collect($readiness)->where('ok',true)->count())
 @php($phase=$focus->status==='draft'?1:($focus->status==='running'?2:($focus->results_locked_at?4:3)))
