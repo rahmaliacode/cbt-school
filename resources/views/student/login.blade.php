@@ -5,7 +5,7 @@
 <span class="brand">
 <span class="brand-icon">C</span> CBT LOMBA</span>
 <p class="eyebrow">COMPUTER BASED TEST</p>
-<h1>Siap mengikuti<br>ujian?</h1>
+<h1 class="student-event-title">Lomba 10 (sepuluh) Mata Pelajaran Jenjang SMP Se- Kabupaten Aceh Tenggara Tahun 2026</h1><p class="muted">Dinas Pendidikan dan Kebudayaan Kabupaten Aceh Tenggara</p>
 <p>Pastikan nomor peserta dan token sesi sesuai kartu yang diberikan panitia.</p>
 <div class="local-label">
 <span class="status-dot">

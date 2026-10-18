@@ -1,4 +1,5 @@
 @extends('layout') @section('content')<div class="center-card card">
+<p class="student-event-banner">Lomba 10 (sepuluh) Mata Pelajaran Jenjang SMP Se- Kabupaten Aceh Tenggara Tahun 2026</p>
 <p class="eyebrow">RUANG TUNGGU</p>
 <h1>{{ $session->name }}</h1>
 <p>{{ $participant->name }} · {{ $participant->participant_number }}</p>
