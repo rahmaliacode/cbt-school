@@ -38,6 +38,6 @@
 </div>
 <button>Simpan perubahan</button>
 </form>
-<form method="post" action="/admin/participants/{{ $p->id }}" data-confirm="Hapus peserta ini?">@csrf @method('DELETE')<button class="danger small-button">Hapus</button>
+<form method="post" action="/admin/participants/{{ $p->id }}" data-confirm="Hapus peserta ini?">@csrf @method('DELETE')<button class="danger small-button"><x-icon name="trash"/>Hapus</button>
 </form>
 </details>@empty<p class="empty">Belum ada peserta.</p>@endforelse</section>@endsection

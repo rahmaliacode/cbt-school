@@ -18,15 +18,15 @@
 <code>{{ $s->token }}</code>
 </td>
 <td>
-<span class="badge">{{ ['draft'=>'Belum dimulai','running'=>'Berlangsung','ended'=>'Berakhir'][$s->status] }}</span>
+<span class="pill {{ $s->status }}">{{ ['draft'=>'Belum dimulai','running'=>'Berlangsung','ended'=>'Berakhir'][$s->status] }}</span>
 </td>
 <td>{{ $s->question_count }} soal · {{ $s->duration_minutes }} menit</td>
 <td>
-<div class="actions">
-<a href="/admin/sessions/{{ $s->id }}/monitor">Monitor</a>
-<a href="/admin/sessions/{{ $s->id }}/results">Hasil</a>@if($s->status==='draft')<a href="/admin/sessions/{{ $s->id }}/edit">Pengaturan nilai</a>
-<form method="post" action="/admin/sessions/{{ $s->id }}/start" data-confirm="Mulai sesi sekarang? Konfigurasi dan soal akan dikunci.">@csrf<button class="small-button">Mulai</button>
-</form>@elseif($s->status==='running')<form method="post" action="/admin/sessions/{{ $s->id }}/end" data-confirm="Akhiri sesi? Semua jawaban peserta akan dikumpulkan dan dikunci.">@csrf<button class="danger small-button">Akhiri</button>
+<div class="actions table-actions">
+<a class="action-button" href="/admin/sessions/{{ $s->id }}/monitor"><x-icon name="monitor"/>Monitor</a>
+<a class="action-button" href="/admin/sessions/{{ $s->id }}/results"><x-icon name="chart"/>Hasil</a>@if($s->status==='draft')<a class="action-button" href="/admin/sessions/{{ $s->id }}/edit"><x-icon name="settings"/>Pengaturan</a>
+<form method="post" action="/admin/sessions/{{ $s->id }}/start" data-confirm="Mulai sesi sekarang? Konfigurasi dan soal akan dikunci.">@csrf<button class="small-button"><x-icon name="play"/>Mulai</button>
+</form>@elseif($s->status==='running')<form method="post" action="/admin/sessions/{{ $s->id }}/end" data-confirm="Akhiri sesi? Semua jawaban peserta akan dikumpulkan dan dikunci.">@csrf<button class="danger small-button"><x-icon name="stop"/>Akhiri</button>
 </form>@endif</div>
 </td>
 </tr>@empty<tr>

@@ -1,0 +1,28 @@
+@props(['name'])
+@php($paths=[
+'user'=>'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+'key'=>'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 11h9 M17 11v3 M20 11v2',
+'lock'=>'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
+'clock'=>'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
+'save'=>'M5 3h11l3 3v15H5z M8 3v5h7V3 M8 21v-7h8v7',
+'wifi'=>'M2 9a15 15 0 0 1 20 0 M5 12.5a10 10 0 0 1 14 0 M8.5 16a5 5 0 0 1 7 0 M12 20h.01',
+'doc'=>'M6 3h9l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h4',
+'list'=>'M9 6h11 M9 12h11 M9 18h11 M4 6h.01 M4 12h.01 M4 18h.01',
+'screen'=>'M3 4h18v12H3z M8 20h8 M12 16v4',
+'shield'=>'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4',
+'check'=>'M5 12l5 5L20 7',
+'arrow'=>'M5 12h14 M13 6l6 6-6 6',
+'logout'=>'M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10',
+'help'=>'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7 M12 17h.01',
+'award'=>'M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M8.5 14 7 22l5-3 5 3-1.5-8',
+'mail'=>'M3 5h18v14H3z M3 6l9 7 9-7',
+'monitor'=>'M3 12h4l3-7 4 14 3-7h4',
+'chart'=>'M5 21V11h4v10 M11 21V3h4v18 M17 21v-7h4v7',
+'settings'=>'M4 6h10 M18 6h2 M4 12h4 M12 12h8 M4 18h12 M20 18h0 M16 4v4 M10 10v4 M18 16v4',
+'download'=>'M12 3v12 M7 10l5 5 5-5 M4 21h16',
+'print'=>'M7 8V3h10v5 M5 8h14v8h-2 M7 16H5 M7 13h10v8H7z',
+'play'=>'M7 4l13 8-13 8z',
+'stop'=>'M6 6h12v12H6z',
+'trash'=>'M4 7h16 M10 11v6 M14 11v6 M6 7l1 14h10l1-14 M9 7V4h6v3',
+])
+<svg {{ $attributes->merge(['class'=>'icon']) }} viewBox="0 0 24 24" aria-hidden="true"><path d="{{ $paths[$name] ?? $paths['doc'] }}"/></svg>

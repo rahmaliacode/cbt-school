@@ -120,7 +120,7 @@ class AdminController extends Controller
             }
         } else {
             $data = $r->validate(['paste' => 'required|string|max:2000000']);
-            $rows = array_map(fn ($line) => str_getcsv($line, "\t", '"', ''), preg_split('/\r?\n/', trim($data['paste'])));
+            $rows = $this->pasteRows($data['paste']);
             $hasHeader = ($rows[0] ?? []) === ParticipantImporter::HEADERS;
             if ($hasHeader) {
                 array_shift($rows);
@@ -166,6 +166,21 @@ class AdminController extends Controller
         return back();
     }
 
+    // Excel copies a multi-line cell as a quoted field containing newlines, so rows cannot be split per line first.
+    private function pasteRows(string $paste): array
+    {
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, trim($paste));
+        rewind($stream);
+        $rows = [];
+        while (($row = fgetcsv($stream, 0, "\t", '"', '')) !== false) {
+            $rows[] = array_map(fn ($v) => str_replace("\r\n", "\n", (string) $v), $row);
+        }
+        fclose($stream);
+
+        return $rows;
+    }
+
     public function questions()
     {
         return view('admin.questions', ['questions' => Question::with('subject', 'options')->orderBy('subject_id')->orderBy('number')->get(), 'subjects' => Subject::all()]);
@@ -189,6 +204,7 @@ class AdminController extends Controller
     {
         $data = $r->validate(['subject_id' => 'required|exists:subjects,id', 'number' => ['required', 'integer', 'min:1', 'max:2147483647', Rule::unique('questions')->where('subject_id', $r->subject_id)->ignore($question?->id)], 'text' => 'required|string', 'options' => 'required|array:A,B,C,D,E', 'options.A' => 'required|string', 'options.B' => 'required|string', 'options.C' => 'required|string', 'options.D' => 'required|string', 'options.E' => 'nullable|string', 'key' => 'required|in:A,B,C,D,E', 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048|dimensions:max_width=6000,max_height=6000', 'image_alt' => 'nullable|string|max:200', 'remove_image' => 'nullable|boolean']);
         $engine->require($data['key'] !== 'E' || isset($data['options']['E']) && $data['options']['E'] !== '', 'Opsi E wajib jika kunci E.');
+        $engine->require(collect([$data['text'], ...$data['options']])->every(fn ($v) => strlen((string) $v) <= QuestionImporter::MAX_TEXT_BYTES), 'Teks soal/opsi terlalu panjang (maksimal 64 KB).');
         $uploadedPath = null;
         try { DB::transaction(function () use ($question, $data, $r, &$uploadedPath) {
             if ($question && ExamSession::whereNotNull('question_snapshot')->get()->contains(fn ($s) => in_array($question->id, array_column($s->question_snapshot, 'id')))) {
@@ -251,8 +267,7 @@ class AdminController extends Controller
             }
         } else {
             $data = $r->validate(['paste' => 'required|string|max:2000000']);
-            $lines = preg_split('/\r?\n/', trim($data['paste']));
-            $rows = array_map(fn ($line) => str_getcsv($line, "\t", '"', ''), $lines);
+            $rows = $this->pasteRows($data['paste']);
             $hasHeader = ($rows[0] ?? []) === QuestionImporter::HEADERS;
             if ($hasHeader) {
                 array_shift($rows);
@@ -323,6 +338,12 @@ class AdminController extends Controller
         return view('admin.monitor', ['session' => $examSession]);
     }
 
+    // Read-only projector screen: no token, no reset, no focus signals.
+    public function display(ExamSession $examSession)
+    {
+        return view('admin.display', ['session' => $examSession]);
+    }
+
     public function monitorData(ExamSession $examSession, ExamEngine $engine)
     {
         $engine->expire();
@@ -335,7 +356,7 @@ class AdminController extends Controller
             return ['id' => $a?->id, 'participant_number' => $p->participant_number, 'name' => $p->name, 'status' => $a?->status ?? 'not_started', 'progress' => ($a?->answered_count ?? 0).'/'.$examSession->question_count, 'remaining_seconds' => $a && $a->status === 'in_progress' ? max(0, now()->diffInSeconds($a->deadline_at, false)) : 0, 'started_at' => $a?->started_at?->toIso8601String(), 'submitted_at' => $a?->submitted_at?->toIso8601String(), 'focus_signals' => $a ? ($focusSignals->get($a->id)?->count() ?? 0) : 0, 'connection' => $a ? ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(20)) ? 'Stabil' : ($a->last_seen_at && $a->last_seen_at->gt(now()->subSeconds(60)) ? 'Lambat' : 'Terputus')) : '—'];
         });
 
-        return response()->json(['server_now' => now()->toIso8601String(), 'status' => $examSession->status, 'participants' => $rows]);
+        return response()->json(['server_now' => now()->toIso8601String(), 'status' => $examSession->status, 'ends_at' => $examSession->ends_at?->toIso8601String(), 'participants' => $rows]);
     }
 
     public function results(ExamSession $examSession, ExamEngine $engine)

@@ -38,6 +38,6 @@
 <span class="badge">{{ $q->subject->name }} · {{ $q->number }}</span> {{ \Illuminate\Support\Str::limit($q->text,100) }}</summary>
 <form enctype="multipart/form-data" method="post" action="/admin/questions/{{ $q->id }}">@csrf @method('PUT') @include('admin.question-fields')<button>Simpan perubahan</button>
 </form>
-<form method="post" action="/admin/questions/{{ $q->id }}" data-confirm="Hapus soal ini?">@csrf @method('DELETE')<button class="danger small-button">Hapus soal</button>
+<form method="post" action="/admin/questions/{{ $q->id }}" data-confirm="Hapus soal ini?">@csrf @method('DELETE')<button class="danger small-button"><x-icon name="trash"/>Hapus soal</button>
 </form>
 </details>@empty<p class="empty">Belum ada soal. Download template untuk mulai.</p>@endforelse</section>@endsection

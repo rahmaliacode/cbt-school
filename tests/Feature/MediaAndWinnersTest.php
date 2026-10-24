@@ -35,7 +35,7 @@ class MediaAndWinnersTest extends TestCase
         $this->assertSame($path, $s->question_snapshot[0]['image_path']);
         $this->get('/exam/media/'.$q->id)->assertUnauthorized();
         $p = $s->participants->first();
-        $this->withSession(['participant_id' => $p->id, 'exam_session_id' => $s->id])->get('/exam/media/'.$q->id)->assertNotFound();
+        $this->withSession(['participant_id' => $p->id, 'exam_session_id' => $s->id])->get('/exam/media/'.$q->id)->assertRedirect('/waiting');
         $a = $engine->startAttempt($s, $p->id);
         $this->get('/exam/state')->assertJsonPath('questions.0.image_url', '/exam/media/'.$q->id)->assertJsonMissing(['image_path' => $path]);
         $this->get('/exam/media/'.$q->id)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
@@ -80,7 +80,7 @@ class MediaAndWinnersTest extends TestCase
         $admin = User::forceCreate(['name' => 'Admin', 'email' => 'focus@example.test', 'password' => 'secret', 'is_admin' => true]);
         $this->actingAs($admin)->getJson('/admin/sessions/'.$s->id.'/monitor-data')->assertOk()->assertJsonPath('participants.0.focus_signals', 1);
         $other = $s->participants->last();
-        $this->withSession(['participant_id' => $other->id])->postJson('/exam/focus-events', $payload + ['attempt_id' => $a->id])->assertNotFound();
+        $this->withSession(['participant_id' => $other->id])->postJson('/exam/focus-events', $payload + ['attempt_id' => $a->id])->assertOk()->assertExactJson(['status' => 'reset', 'redirect' => '/waiting']);
         $this->withSession(['participant_id' => $p->id]);
         $engine->submit($a); $score = $a->refresh()->result->total_score;
         $this->postJson('/exam/focus-events', ['events' => [['id' => 'fe7273ea-47dd-486f-a529-74cf2ee9a856', 'type' => 'window_blur']]])->assertOk()->assertJsonPath('accepted', 0);

@@ -7,6 +7,7 @@
 <title>@yield('title','CBT Lomba')</title>
 <link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/experience.css">
+<link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/experience.js" defer></script>
 <script src="/assets/media.js" defer></script>
 <script src="/assets/common.js" defer>

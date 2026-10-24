@@ -231,6 +231,31 @@ class CbtTest extends TestCase
         $this->get('/admin/attempts/'.$a->id)->assertForbidden();
     }
 
+    public function test_projector_display_requires_admin_and_hides_token(): void
+    {
+        $s = $this->makeSession();
+        $this->get('/admin/sessions/'.$s->id.'/display')->assertRedirect('/admin/login');
+        $this->actingAs($this->admin());
+        $this->get('/admin/sessions/'.$s->id.'/display')->assertOk()->assertSee('Layar Pantau')->assertDontSee($s->token)->assertDontSee('Reset');
+        $this->getJson('/admin/sessions/'.$s->id.'/monitor-data')->assertOk()->assertJsonPath('ends_at', $s->fresh()->ends_at->toIso8601String());
+    }
+
+    public function test_admin_password_can_be_reset_from_console(): void
+    {
+        $admin = $this->admin();
+        $this->artisan('cbt:reset-admin-password', ['email' => 'missing@example.test'])->assertExitCode(1);
+        $this->artisan('cbt:reset-admin-password', ['email' => $admin->email])
+            ->expectsQuestion('Password baru (minimal 12 karakter)', 'new-password-123')
+            ->expectsQuestion('Ulangi password baru', 'typo-password-123')
+            ->assertExitCode(1);
+        $this->artisan('cbt:reset-admin-password', ['email' => $admin->email])
+            ->expectsQuestion('Password baru (minimal 12 karakter)', 'new-password-123')
+            ->expectsQuestion('Ulangi password baru', 'new-password-123')
+            ->assertExitCode(0);
+        $this->assertTrue(Hash::check('new-password-123', $admin->fresh()->password));
+        $this->post('/admin/login', ['email' => $admin->email, 'password' => 'new-password-123'])->assertRedirect('/admin');
+    }
+
     public function test_admin_cannot_change_configuration_or_used_questions(): void
     {
         $s = $this->makeSession();
@@ -278,6 +303,16 @@ class CbtTest extends TestCase
         $this->assertDatabaseCount('questions', 0);
     }
 
+    public function test_pasted_multi_line_excel_cell_stays_in_one_question(): void
+    {
+        Subject::create(['name' => 'Bahasa Indonesia']);
+        $this->actingAs($this->admin());
+        $paste = "1\tBahasa Indonesia\t\"Paragraf pertama \"\"kutipan\"\".\r\n\r\nParagraf kedua.\"\tA\tB\tC\tD\t\tA\r\n2\tBahasa Indonesia\tSoal dua\tA\tB\tC\tD\t\tB";
+        $this->post('/admin/questions/preview', ['paste' => $paste])->assertOk()->assertSee('Simpan 2 soal');
+        $this->post('/admin/questions/import')->assertRedirect();
+        $this->assertSame("Paragraf pertama \"kutipan\".\n\nParagraf kedua.", Question::where('number', 1)->value('text'));
+    }
+
     public function test_ties_and_configured_tie_breakers_match_csv(): void
     {
         $s = $this->makeSession(['correct_score' => 0, 'incorrect_score' => 0]);
@@ -319,6 +354,10 @@ class CbtTest extends TestCase
         $this->assertDatabaseCount('participant_answers', 0);
         $this->assertDatabaseCount('results', 0);
         $this->assertDatabaseHas('activity_logs', ['event' => 'attempt_reset']);
+        $this->withSession(['participant_id' => $a->participant_id, 'exam_session_id' => $s->id]);
+        $this->getJson('/exam/state')->assertOk()->assertExactJson(['status' => 'reset', 'redirect' => '/waiting']);
+        $this->get('/waiting')->assertOk()->assertSee('Ujian Anda direset oleh panitia');
+        $this->get('/exam')->assertRedirect('/waiting');
         $new = $this->attempt($s);
         $this->assertNotSame($a->id, $new->id);
         $this->assertTrue($new->deadline_at->equalTo($s->ends_at));
@@ -341,7 +380,7 @@ class CbtTest extends TestCase
         }
         $this->get('/admin/questions/template')->assertOk();
         $this->engine->submit($a);
-        $this->get('/finished')->assertOk()->assertDontSee('Skor total');
+        $this->get('/finished')->assertOk()->assertSee('Skor total');
         $this->get('/admin/attempts/'.$a->id)->assertForbidden();
         $this->engine->endSession($s);
         $this->get('/admin/attempts/'.$a->id)->assertOk();
@@ -386,7 +425,7 @@ class CbtTest extends TestCase
         $this->postJson('/exam/submit')->assertOk()->assertJson(['redirect' => '/finished']);
         $this->postJson('/exam/submit')->assertOk();
         $this->assertDatabaseCount('results', 1);
-        $this->get('/finished')->assertOk()->assertDontSee('Skor total');
+        $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('4.00');
         $this->actingAs(User::where('is_admin', true)->first());
         $this->post('/admin/sessions/'.$session->id.'/end')->assertRedirect();
         $this->post('/admin/sessions/'.$session->id.'/lock-results')->assertRedirect();

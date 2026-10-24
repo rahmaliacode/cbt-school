@@ -42,6 +42,7 @@ Password admin dimasukkan secara tersembunyi (minimal 12 karakter), tidak ada ak
 
 - Jalankan database XAMPP. Pastikan proses server **dan scheduler** tetap berjalan.
 - Windows: klik `scripts/start-server.bat`. Jika lokasi PHP berbeda, set dahulu `CBT_PHP` ke file `php.exe` yang kompatibel.
+- Windows dengan Apache XAMPP: jadikan Apache dan MySQL service (centang **Svc** di XAMPP Control Panel sebagai Administrator), lalu taruh shortcut `scripts/start-scheduler.bat` di folder `shell:startup` agar scheduler terbuka sendiri setiap login Windows.
 - Linux/macOS: `bash scripts/start-server.sh`.
 - Alternatif manual, buka dua terminal:
 
@@ -68,7 +69,7 @@ Scheduler memfinalisasi sesi habis waktu walaupun semua browser tertutup. Reques
 8. Detail hasil tersedia untuk attempt yang sudah submit. Leaderboard selama sesi masih berjalan adalah sementara dan hanya berisi attempt selesai. Export CSV dapat dibuka di Excel dan memakai data/peringkat yang sama. Tidak ada export PDF.
 9. Reset resmi tersedia di monitor untuk sesi yang masih berjalan. Memerlukan alasan dan konfirmasi; menghapus attempt beserta jawaban/hasil, menyimpan salinan di audit log, lalu memberi peserta kesempatan mulai dengan sisa waktu sesi.
 
-Pengaturan `show_live_score` mengatur **leaderboard panitia**: on menampilkan peserta submit; off menahan nilai/detail/ekspor sampai sesi berakhir. Monitor selalu menyembunyikan jawaban dan skor. Hasil peserta baru tampil setelah panitia mengunci FINAL. Buka kembali hasil wajib alasan tercatat.
+Pengaturan `show_live_score` mengatur **leaderboard panitia**: on menampilkan peserta submit; off menahan nilai/detail/ekspor sampai sesi berakhir. Monitor selalu menyembunyikan jawaban dan skor. Peserta melihat skor totalnya sendiri di halaman selesai segera setelah submit; peringkat/leaderboard tetap hanya untuk panitia. Buka kembali hasil wajib alasan tercatat.
 
 ## Keamanan jawaban dan penilaian
 

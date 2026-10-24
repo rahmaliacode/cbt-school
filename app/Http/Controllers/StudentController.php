@@ -6,7 +6,9 @@ use App\Models\Attempt;
 use App\Models\ExamSession;
 use App\Models\Participant;
 use App\Services\ExamEngine;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -50,8 +52,16 @@ class StudentController extends Controller
     private function attempt(Request $r): Attempt
     {
         [$p,$s] = $this->identity($r);
+        $attempt = Attempt::where('participant_id', $p->id)->where('exam_session_id', $s->id)->first();
+        if (! $attempt) {
+            // Attempt is gone after an official reset (or was never started): send the participant back to the waiting room.
+            if (DB::table('activity_logs')->where('event', 'attempt_reset')->where('context->participant_id', $p->id)->where('context->exam_session_id', $s->id)->exists()) {
+                $r->session()->flash('success', 'Ujian Anda direset oleh panitia. Silakan mulai kembali dari awal.');
+            }
+            throw new HttpResponseException($r->expectsJson() ? response()->json(['status' => 'reset', 'redirect' => '/waiting']) : redirect('/waiting'));
+        }
 
-        return Attempt::where('participant_id', $p->id)->where('exam_session_id', $s->id)->firstOrFail();
+        return $attempt;
     }
 
     public function waiting(Request $r, ExamEngine $engine)

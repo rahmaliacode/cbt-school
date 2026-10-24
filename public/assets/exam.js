@@ -26,6 +26,18 @@
                 "Penyimpanan browser tidak tersedia. Pastikan koneksi server stabil.";
         }
     };
+    // Attempt finished, or reset by the committee (server sends redirect to the waiting room).
+    function leave(data) {
+        expired = true;
+        if (data.status === "reset") {
+            pending = {};
+            try {
+                localStorage.removeItem(key);
+            } catch {}
+        }
+        window.CbtGuard?.finish();
+        location.href = data.redirect || "/finished";
+    }
     function render() {
         if (!ready) return;
         const q = questions[index],
@@ -54,7 +66,7 @@
                 edit({ answer_option_id: o.id }),
             );
             const letter = document.createElement("strong");
-            letter.textContent = String.fromCharCode(65 + i) + ".";
+            letter.textContent = String.fromCharCode(65 + i);
             const text = document.createElement("span");
             text.textContent = o.text;
             label.append(radio, letter, text);
@@ -85,12 +97,15 @@
             el("question-grid").append(b);
         });
         el("previous").disabled = index === 0;
-        el("next").disabled = index === questions.length - 1;
+        el("next").hidden = index === questions.length - 1;
+        el("finish-last").hidden = index !== questions.length - 1;
         el("progress").textContent =
             answered +
             "/" +
             questions.length +
             " terjawab";
+        el("progress-fill").style.width =
+            (answered / questions.length) * 100 + "%";
         el("summary-answered").textContent = answered;
         el("summary-blank").textContent = questions.length - answered;
     }
@@ -127,9 +142,7 @@
                     body: JSON.stringify(payload),
                 });
                 if (data.status !== "in_progress") {
-                    expired = true;
-                    window.CbtGuard?.finish();
-                    location.href = "/finished";
+                    leave(data);
                     return;
                 }
                 answers[id] = payload;
@@ -152,9 +165,7 @@
             const before = performance.now();
             const data = await cbtFetch("/exam/state");
             if (data.status !== "in_progress") {
-                expired = true;
-                window.CbtGuard?.finish();
-                location.href = "/finished";
+                leave(data);
                 return;
             }
             questions = data.questions;
@@ -180,7 +191,7 @@
             }
             remember();
             ready = true;
-            el("finish").disabled = false;
+            setFinishDisabled(false);
             render();
             flush();
         } catch (e) {
@@ -200,7 +211,7 @@
         }
         submitting = true;
         el("confirm-submit").disabled = true;
-        el("finish").disabled = true;
+        setFinishDisabled(true);
         el("submit-message").textContent = "Mengumpulkan jawaban…";
         render();
         try {
@@ -217,7 +228,7 @@
                 "Submit belum terkonfirmasi. Mencoba kembali…";
             submitting = false;
             el("confirm-submit").disabled = false;
-            el("finish").disabled = false;
+            setFinishDisabled(false);
             if (force) setTimeout(() => submit(true), 3000);
         }
     }
@@ -233,8 +244,12 @@
             render();
         }
     };
-    el("finish").disabled = true;
-    el("finish").onclick = () => {
+    function setFinishDisabled(disabled) {
+        el("finish").disabled = disabled;
+        el("finish-last").disabled = disabled;
+    }
+    setFinishDisabled(true);
+    el("finish").onclick = el("finish-last").onclick = () => {
         render();
         el("submit-message").textContent = Object.keys(pending).length
             ? "Ada jawaban yang belum tersimpan."
@@ -264,6 +279,7 @@
         ]
             .map((x) => String(x).padStart(2, "0"))
             .join(":");
+        el("timer").classList.toggle("low", s <= 300);
         if (ms === 0 && !expired) {
             expired = true;
             submit(true);

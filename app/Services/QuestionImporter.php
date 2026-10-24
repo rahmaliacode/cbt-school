@@ -13,6 +13,9 @@ class QuestionImporter
 {
     const HEADERS = ['No', 'Mapel', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'Kunci'];
 
+    // MySQL TEXT column limit.
+    const MAX_TEXT_BYTES = 65535;
+
     public function file(string $path): array
     {
         $reader = IOFactory::createReaderForFile($path);
@@ -69,6 +72,12 @@ class QuestionImporter
             }
             if ($text === '') {
                 $problems[] = 'Soal wajib diisi';
+            }
+            foreach ([$text, $a, $b, $c, $d, $e] as $value) {
+                if (strlen($value) > self::MAX_TEXT_BYTES) {
+                    $problems[] = 'Teks soal/opsi terlalu panjang (maksimal 64 KB)';
+                    break;
+                }
             }
             if ($a === '' || $b === '' || $c === '' || $d === '') {
                 $problems[] = 'Opsi A-D wajib diisi';

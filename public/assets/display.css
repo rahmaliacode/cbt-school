@@ -1,0 +1,129 @@
+/* Projector screen (admin/display): large, read-only participant progress. */
+.display-screen {
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px 32px;
+  background: #f1f4f9;
+}
+.display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 28px;
+  border-radius: var(--radius);
+  background: var(--hero);
+  color: #fff;
+}
+.display-header h1 {
+  margin: 4px 0;
+  font-size: 32px;
+  color: #fff;
+}
+.display-header .eyebrow,
+.display-header .muted {
+  margin: 0;
+  color: #c9d8f5;
+}
+.display-timer {
+  text-align: right;
+}
+.display-timer small {
+  display: block;
+  color: #c9d8f5;
+  font-size: 16px;
+}
+.display-timer time {
+  font-size: 56px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.display-timer time.low {
+  color: #ffb4b4;
+}
+.display-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+.display-counts div {
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-size: 18px;
+}
+.display-counts strong {
+  display: block;
+  font-size: 40px;
+  color: var(--ink);
+}
+.display-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--shadow);
+  font-size: 18px;
+}
+.display-table th {
+  padding: 12px 16px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 15px;
+  text-align: left;
+}
+.display-table td {
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+.display-table td:first-child {
+  width: 56px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.display-table td:nth-child(3) {
+  font-weight: 600;
+}
+.display-table tr.submitted td,
+.display-table tr.timed_out td {
+  background: var(--success-soft);
+}
+.display-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+.display-progress .progress-track {
+  flex: 1;
+}
+.display-progress span {
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.display-status {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+@media (max-width: 700px) {
+  .display-screen {
+    padding: 16px;
+  }
+  .display-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .display-timer {
+    text-align: left;
+  }
+  .display-timer time {
+    font-size: 40px;
+  }
+}

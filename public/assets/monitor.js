@@ -13,6 +13,18 @@
         tr.append(td);
         return td;
     };
+    const pill = (td, text, tone) => {
+        const span = document.createElement("span");
+        span.className = "pill " + tone;
+        span.textContent = text;
+        td.replaceChildren(span);
+    };
+    const tones = {
+        not_started: "pending",
+        in_progress: "running",
+        submitted: "final",
+        timed_out: "ended",
+    };
     async function poll() {
         try {
             const data = await cbtFetch(window.monitorEndpoint);
@@ -28,7 +40,7 @@
             data.participants.forEach((p) => {
                 const tr = document.createElement("tr");
                 cell(tr, p.participant_number + " · " + p.name);
-                cell(tr, labels[p.status]);
+                pill(cell(tr, ""), labels[p.status], tones[p.status]);
                 cell(tr, p.progress);
                 const sec = Math.floor(p.remaining_seconds);
                 cell(
@@ -48,7 +60,7 @@
                           })
                         : "—";
                 cell(tr, time(p.started_at) + " / " + time(p.submitted_at));
-                cell(tr, p.connection);
+                pill(cell(tr, ""), p.connection, p.connection === "Terputus" ? "danger" : "neutral");
                 cell(tr, p.focus_signals ? p.focus_signals + ' catatan · tinjau' : '—');
                 const td = cell(tr, "");
                 if (p.id && data.status === "running") {
