@@ -104,7 +104,7 @@
       box.dataset.enhanced = "1";
       const input = box.querySelector("[data-search-input]"),
         count = box.querySelector("[data-search-count]"),
-        rows = Array.from(box.querySelectorAll("tbody tr, [data-search-entry]"));
+        rows = Array.from(box.querySelectorAll("tbody tr:not([data-search-skip]), [data-search-entry]"));
       if (!input) continue;
       const update = () => {
         let visible = 0;
@@ -123,6 +123,16 @@
       update();
     }
   }
+  // Row forms (edit, reset): a button toggles the hidden full-width row named by data-toggle-row.
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-toggle-row]");
+    const row = button && document.getElementById(button.dataset.toggleRow);
+    if (!row) return;
+    row.hidden = !row.hidden;
+    button.classList.toggle("active", !row.hidden);
+    button.setAttribute("aria-expanded", String(!row.hidden));
+    if (!row.hidden) row.querySelector("input, textarea, select")?.focus();
+  });
   window.CbtUX = { scoreSample, icon, enhance };
   document.addEventListener("DOMContentLoaded", () => enhance());
 })();

@@ -31,13 +31,33 @@
 </form>
 </details>
 <section class="card" data-search-table>
-<div class="table-tools"><label><span class="sr-only">Cari soal</span><input type="search" data-search-input placeholder="Cari nama, nomor, atau mapel…"></label><span class="small muted" data-search-count></span></div><p class="table-empty" data-search-empty hidden>Tidak ada data yang cocok. Coba kata lain.</p>
+<div class="table-tools"><label><span class="sr-only">Cari soal</span><input type="search" data-search-input placeholder="Cari teks soal atau nomor…"></label><span class="small muted" data-search-count></span></div><p class="table-empty" data-search-empty hidden>Tidak ada data yang cocok. Coba kata lain.</p>
 <h2>Daftar soal <span class="muted small">{{ $questions->count() }} soal</span>
-</h2>@forelse($questions as $q)<details data-search-entry>
-<summary>
-<span class="badge">{{ $q->subject->name }} · {{ $q->number }}</span> {{ \Illuminate\Support\Str::limit($q->text,100) }}</summary>
-<form enctype="multipart/form-data" method="post" action="/admin/questions/{{ $q->id }}">@csrf @method('PUT') @include('admin.question-fields')<button>Simpan perubahan</button>
-</form>
-<form method="post" action="/admin/questions/{{ $q->id }}" data-confirm="Hapus soal ini?">@csrf @method('DELETE')<button class="danger small-button"><x-icon name="trash"/>Hapus soal</button>
-</form>
-</details>@empty<p class="empty">Belum ada soal. Download template untuk mulai.</p>@endforelse</section>@endsection
+</h2>@php($bySubject = $questions->groupBy('subject_id'))@forelse($subjects as $subject)@php($items = $bySubject->get($subject->id, collect()))<details class="subject-group" @if($items->isNotEmpty()) open @endif>
+<summary><strong>{{ $subject->name }}</strong> <span class="muted small">{{ $items->count() }} soal</span></summary>@if($items->isEmpty())<p class="empty">Belum ada soal untuk mapel ini.</p>@else<div class="table-wrap">
+<table class="question-table">
+<thead>
+<tr>
+<th>No</th>
+<th>Soal</th>
+<th>Opsi</th>
+<th>Kunci</th>
+<th>Gambar</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody>@foreach($items as $q)<tr>
+<td>{{ $q->number }}</td>
+<td>{{ \Illuminate\Support\Str::limit(\Illuminate\Support\Str::squish($q->text), 140) }}</td>
+<td>{{ $q->options->count() }}</td>
+<td><strong>{{ $q->options->firstWhere('is_correct', true)?->label ?? '—' }}</strong></td>
+<td>{{ $q->image_path ? 'Ada' : '—' }}</td>
+<td><div class="actions table-actions"><button type="button" class="action-button" data-toggle-row="question-edit-{{ $q->id }}"><x-icon name="edit"/>Edit</button><form method="post" action="/admin/questions/{{ $q->id }}" data-confirm="Hapus soal ini?">@csrf @method('DELETE')<button class="danger small-button"><x-icon name="trash"/>Hapus</button>
+</form></div></td>
+</tr>
+<tr id="question-edit-{{ $q->id }}" class="row-form" data-search-skip hidden>
+<td colspan="6"><form enctype="multipart/form-data" method="post" action="/admin/questions/{{ $q->id }}">@csrf @method('PUT') @include('admin.question-fields')<button>Simpan perubahan</button>
+</form></td>
+</tr>@endforeach</tbody>
+</table>
+</div>@endif</details>@empty<p class="empty">Belum ada mapel. Buat mapel dahulu di menu Mata Pelajaran.</p>@endforelse</section>@endsection

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // @score(4.00) prints "4", 2.50 prints "2.5"; stored values and exports keep two decimals.
+        Blade::directive('score', fn ($value) => "<?php echo e(rtrim(rtrim(number_format((float) ($value), 2, '.', ''), '0'), '.')); ?>");
     }
 }

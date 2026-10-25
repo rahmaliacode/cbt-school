@@ -3,7 +3,7 @@
 <p>{{ $attempt->participant->participant_number }} · {{ $attempt->examSession->name }}</p>
 <div class="stats">
 <div>
-<strong>{{ $attempt->result->total_score }}</strong>Skor</div>
+<strong>@score($attempt->result->total_score)</strong>Skor</div>
 <div>
 <strong>{{ $attempt->result->correct_count }}</strong>Benar</div>
 <div>

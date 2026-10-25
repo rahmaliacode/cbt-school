@@ -46,6 +46,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::put('/sessions/{examSession}', [A::class, 'saveSession']);
     Route::post('/sessions/{examSession}/start', [A::class, 'startSession']);
     Route::post('/sessions/{examSession}/end', [A::class, 'endSession']);
+    Route::post('/sessions/{examSession}/reset', [A::class, 'resetSession']);
     Route::get('/sessions/{examSession}/monitor', [A::class, 'monitor']);
     Route::get('/sessions/{examSession}/monitor-data', [A::class, 'monitorData']);
     Route::get('/sessions/{examSession}/display', [A::class, 'display']);

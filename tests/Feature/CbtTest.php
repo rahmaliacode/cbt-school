@@ -270,6 +270,44 @@ class CbtTest extends TestCase
         $this->delete('/admin/questions/'.$q->id)->assertStatus(422);
     }
 
+    public function test_session_reset_returns_to_draft_with_audit_copy(): void
+    {
+        $s = $this->makeSession();
+        $a = $this->attempt($s);
+        $this->answer($a, $a->question_order[0]);
+        $this->engine->submit($a);
+        $this->actingAs($this->admin());
+        $this->post('/admin/sessions/'.$s->id.'/end')->assertRedirect();
+        $this->post('/admin/sessions/'.$s->id.'/lock-results')->assertRedirect();
+        $this->postJson('/admin/sessions/'.$s->id.'/reset', ['reason' => 'Ulang simulasi'])->assertUnprocessable();
+        $this->post('/admin/sessions/'.$s->id.'/unlock-results', ['reason' => 'Ulang simulasi'])->assertRedirect();
+        $this->post('/admin/sessions/'.$s->id.'/reset', ['reason' => 'Ulang simulasi'])->assertRedirect();
+        $s->refresh();
+        $this->assertSame('draft', $s->status);
+        $this->assertNull($s->ends_at);
+        $this->assertNull($s->question_snapshot);
+        $this->assertDatabaseCount('attempts', 0);
+        $this->assertDatabaseCount('results', 0);
+        $this->assertDatabaseHas('activity_logs', ['event' => 'session_reset']);
+        $this->postJson('/admin/sessions/'.$s->id.'/reset', ['reason' => 'Ulang simulasi'])->assertUnprocessable();
+        $this->engine->startSession($s);
+        $this->assertNotSame($a->id, $this->attempt($s->refresh())->id);
+    }
+
+    public function test_participant_can_only_be_assigned_to_one_session(): void
+    {
+        $s = $this->makeSession();
+        $taken = $s->participants->first();
+        $free = Participant::create(['participant_number' => 'P-002', 'name' => 'Bebas']);
+        $this->actingAs($this->admin());
+        $this->get('/admin/sessions/create')->assertOk()->assertSee('P-002')->assertDontSee('P-001 · Nadira')->assertSee('1 peserta sudah ada di sesi lain');
+        $data = ['name' => 'Kedua', 'subject_id' => $s->subject_id, 'token' => 'KEDUA123', 'question_count' => 3, 'duration_minutes' => 60, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'option_count' => 4, 'tie_breaker' => 'none'];
+        $this->postJson('/admin/sessions', $data + ['participant_ids' => [$taken->id, $free->id]])->assertUnprocessable()->assertJsonFragment(['Peserta sudah terdaftar di sesi lain: P-001.']);
+        $this->post('/admin/sessions', $data + ['participant_ids' => [$free->id]])->assertRedirect('/admin/sessions');
+        $second = ExamSession::where('token', 'KEDUA123')->first();
+        $this->get('/admin/sessions/'.$second->id.'/edit')->assertOk()->assertSee('P-002 · Bebas')->assertDontSee('P-001 · Nadira');
+    }
+
     public function test_import_validates_all_rows_and_rolls_back_duplicate_commit(): void
     {
         Subject::create(['name' => 'IPA']);
@@ -425,11 +463,11 @@ class CbtTest extends TestCase
         $this->postJson('/exam/submit')->assertOk()->assertJson(['redirect' => '/finished']);
         $this->postJson('/exam/submit')->assertOk();
         $this->assertDatabaseCount('results', 1);
-        $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('4.00');
+        $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('<strong>4</strong>', false)->assertDontSee('4.00');
         $this->actingAs(User::where('is_admin', true)->first());
         $this->post('/admin/sessions/'.$session->id.'/end')->assertRedirect();
         $this->post('/admin/sessions/'.$session->id.'/lock-results')->assertRedirect();
-        $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('4.00');
+        $this->get('/finished')->assertOk()->assertSee('Skor total')->assertSee('<strong>4</strong>', false)->assertDontSee('4.00');
         $this->post('/logout');
         $this->post('/login', ['participant_number' => 'P-001', 'token' => 'FINAL123'])->assertSessionHasErrors();
     }
@@ -454,6 +492,8 @@ class CbtTest extends TestCase
         $this->post('/admin/participants/import')->assertRedirect('/admin/participants');
         $this->assertDatabaseHas('participants', ['participant_number' => 'P-009', 'name' => 'Siswa Contoh']);
         $this->postJson('/admin/participants/import')->assertUnprocessable();
+        $this->post('/admin/participants/preview', ['paste' => "NOMOR PESERTA\tNAMA\tASAL SEKOLAH\nP-011\tHuruf Besar\tSMP"])
+            ->assertOk()->assertSee('Simpan 1 peserta')->assertDontSee('NOMOR PESERTA');
         $this->post('/admin/participants/preview', ['paste' => "P-010\tValid\tSMP\nP-009\tDuplicate\tSMP"])
             ->assertOk()->assertSee('Nomor peserta duplikat')->assertDontSee('Simpan 1 peserta');
         $this->postJson('/admin/participants/import')->assertUnprocessable();

@@ -12,6 +12,12 @@ class ParticipantImporter
 {
     public const HEADERS = ['Nomor Peserta', 'Nama', 'Asal Sekolah'];
 
+    // Committee files often use upper-case headers ("NOMOR PESERTA").
+    public static function isHeader(array $row): bool
+    {
+        return array_map(fn ($v) => mb_strtolower(trim((string) $v)), array_slice($row, 0, 3)) === array_map('mb_strtolower', self::HEADERS);
+    }
+
     public function file(string $path): array
     {
         $reader = IOFactory::createReaderForFile($path);
@@ -29,7 +35,7 @@ class ParticipantImporter
             }
         });
         $rows = $reader->load($path)->getActiveSheet()->toArray(null, false, false, false);
-        if (array_slice(array_shift($rows) ?? [], 0, 3) !== self::HEADERS) {
+        if (! self::isHeader(array_shift($rows) ?? [])) {
             throw ValidationException::withMessages(['file' => 'Header harus sesuai template peserta.']);
         }
 

@@ -121,7 +121,7 @@ class AdminController extends Controller
         } else {
             $data = $r->validate(['paste' => 'required|string|max:2000000']);
             $rows = $this->pasteRows($data['paste']);
-            $hasHeader = ($rows[0] ?? []) === ParticipantImporter::HEADERS;
+            $hasHeader = ParticipantImporter::isHeader($rows[0] ?? []);
             if ($hasHeader) {
                 array_shift($rows);
             }
@@ -268,7 +268,7 @@ class AdminController extends Controller
         } else {
             $data = $r->validate(['paste' => 'required|string|max:2000000']);
             $rows = $this->pasteRows($data['paste']);
-            $hasHeader = ($rows[0] ?? []) === QuestionImporter::HEADERS;
+            $hasHeader = QuestionImporter::isHeader($rows[0] ?? []);
             if ($hasHeader) {
                 array_shift($rows);
             }
@@ -299,7 +299,15 @@ class AdminController extends Controller
 
     public function sessionForm(?ExamSession $examSession = null)
     {
-        return view('admin.session-form', ['session' => $examSession ?? new ExamSession(['question_count' => 30, 'duration_minutes' => 90, 'option_count' => 4, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'tie_breaker' => 'none']), 'subjects' => Subject::all(), 'participants' => Participant::all()]);
+        $taken = $this->participantsInOtherSessions($examSession);
+
+        return view('admin.session-form', ['session' => $examSession ?? new ExamSession(['question_count' => 30, 'duration_minutes' => 90, 'option_count' => 4, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'tie_breaker' => 'none']), 'subjects' => Subject::all(), 'participants' => Participant::whereNotIn('id', $taken)->orderBy('participant_number')->get(), 'hiddenCount' => $taken->count()]);
+    }
+
+    // Each participant competes in one subject, so a participant belongs to at most one session.
+    private function participantsInOtherSessions(?ExamSession $examSession)
+    {
+        return DB::table('exam_session_participant')->when($examSession, fn ($q) => $q->where('exam_session_id', '!=', $examSession->id))->distinct()->pluck('participant_id');
     }
 
     public function saveSession(Request $r, ExamEngine $engine, ?ExamSession $examSession = null)
@@ -312,6 +320,8 @@ class AdminController extends Controller
             $engine->require(! $s->exists || $s->status === 'draft', 'Konfigurasi sesi yang sudah dimulai tidak dapat diubah.');
             $ids = $data['participant_ids'];
             unset($data['participant_ids']);
+            $conflicts = Participant::whereIn('id', $this->participantsInOtherSessions($s->exists ? $s : null)->intersect($ids))->orderBy('participant_number')->pluck('participant_number');
+            $engine->require($conflicts->isEmpty(), 'Peserta sudah terdaftar di sesi lain: '.$conflicts->take(5)->implode(', ').($conflicts->count() > 5 ? ' dan '.($conflicts->count() - 5).' lainnya' : '').'.');
             $s->fill($data)->save();
             $s->participants()->sync($ids);
         });
@@ -445,6 +455,23 @@ class AdminController extends Controller
         });
 
         return back()->with('success', 'Hasil dikunci sebagai FINAL.');
+    }
+
+    // Back to draft for a rehearsal re-run: every attempt is deleted, a full copy is kept in the audit log.
+    public function resetSession(Request $r, ExamSession $examSession, ExamEngine $engine)
+    {
+        $data = $r->validate(['reason' => 'required|string|min:5|max:500']);
+        DB::transaction(function () use ($examSession, $engine, $data) {
+            $s = ExamSession::lockForUpdate()->findOrFail($examSession->id);
+            $engine->require($s->status !== 'draft', 'Sesi belum dimulai; tidak ada yang perlu direset.');
+            $engine->require(! $s->results_locked_at, 'Hasil sesi sudah dikunci FINAL. Buka kembali hasil terlebih dahulu.');
+            $attempts = Attempt::where('exam_session_id', $s->id)->orderBy('id')->lockForUpdate()->with('answers', 'result')->get();
+            $engine->log('session_reset', ['exam_session_id' => $s->id, 'reason' => $data['reason'], 'previous_status' => $s->status, 'previous_started_at' => $s->started_at?->toIso8601String(), 'previous_attempts' => $attempts->toArray()]);
+            Attempt::where('exam_session_id', $s->id)->delete();
+            $s->update(['status' => 'draft', 'started_at' => null, 'ends_at' => null, 'configuration_snapshot' => null, 'question_snapshot' => null]);
+        });
+
+        return back()->with('success', 'Sesi direset ke status belum dimulai. Jawaban dan nilai sesi ini dihapus; salinannya tersimpan di audit log.');
     }
 
     public function unlockResults(Request $r, ExamSession $examSession, ExamEngine $engine)

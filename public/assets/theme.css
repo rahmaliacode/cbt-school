@@ -1290,3 +1290,82 @@ dialog::backdrop {
     color: #000;
   }
 }
+/* Admin participant and winner tables. */
+.participant-table td,
+.winner-table td {
+  vertical-align: middle;
+}
+.participant-table td:first-child {
+  width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+.winner-table td {
+  vertical-align: top;
+}
+.winner-table .pill {
+  margin-top: 6px;
+}
+/* Row actions: one aligned row of equal-height buttons in every admin table. */
+.table-actions {
+  align-items: center;
+}
+.table-actions form {
+  display: inline-flex;
+  margin: 0;
+}
+button.action-button,
+button.action-button:hover:not(:disabled) {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #d5deea;
+  box-shadow: 0 1px 2px #0f2a470d;
+  filter: none;
+}
+button.action-button:hover:not(:disabled),
+.action-button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.row-form > td {
+  padding: 16px;
+  background: var(--surface-soft);
+}
+.row-form form > button {
+  margin-top: 4px;
+}
+.inline-row-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.inline-row-form label {
+  flex: 1 1 320px;
+  margin: 0;
+}
+/* Question bank grouped by subject. */
+.subject-group {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.subject-group > summary {
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.subject-group > .table-wrap,
+.subject-group > .empty {
+  margin: 0 16px 16px;
+}
+.question-table td {
+  vertical-align: top;
+}
+.question-table td:first-child {
+  width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+.question-table td:nth-child(2) {
+  min-width: 280px;
+}

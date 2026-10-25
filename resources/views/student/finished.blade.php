@@ -15,7 +15,7 @@
 <div><dt>Waktu submit</dt><dd>{{ $attempt->submitted_at->timezone('Asia/Jakarta')->format('d M Y H:i:s') }} WIB</dd></div>
 </dl>@if($attempt->result)<div class="result-score">
 <span><x-icon name="award"/> Skor total</span>
-<strong>{{ $attempt->result->total_score }}</strong>
+<strong>@score($attempt->result->total_score)</strong>
 </div>@else<div class="help-box"><x-icon name="help"/><span>Hasil akan diumumkan oleh panitia.</span></div>@endif<form action="/logout" method="post">@csrf<button class="secondary wide">Kembali ke halaman awal</button>
 </form>
 </div>

@@ -24,5 +24,7 @@
 'play'=>'M7 4l13 8-13 8z',
 'stop'=>'M6 6h12v12H6z',
 'trash'=>'M4 7h16 M10 11v6 M14 11v6 M6 7l1 14h10l1-14 M9 7V4h6v3',
+'edit'=>'M4 20h4L19 9l-4-4L4 16z M13 7l4 4',
+'reset'=>'M4 4v6h6 M5 15a8 8 0 1 0 2-8.5L4 10',
 ])
 <svg {{ $attributes->merge(['class'=>'icon']) }} viewBox="0 0 24 24" aria-hidden="true"><path d="{{ $paths[$name] ?? $paths['doc'] }}"/></svg>

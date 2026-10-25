@@ -27,9 +27,9 @@
 </div>
 <div class="score-rule">
 <span class="score-rule-title">Aturan penilaian</span>
-<span class="score-chip correct">Benar <b>{{ $session->correct_score }}</b></span>
-<span class="score-chip wrong">Salah <b>{{ $session->incorrect_score }}</b></span>
-<span class="score-chip blank">Kosong <b>{{ $session->blank_score }}</b></span>
+<span class="score-chip correct">Benar <b>@score($session->correct_score)</b></span>
+<span class="score-chip wrong">Salah <b>@score($session->incorrect_score)</b></span>
+<span class="score-chip blank">Kosong <b>@score($session->blank_score)</b></span>
 </div>
 <h3 class="rule-heading">Tata tertib ujian</h3>
 <ul class="rule-list">

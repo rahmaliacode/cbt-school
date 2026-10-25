@@ -13,6 +13,11 @@ class QuestionImporter
 {
     const HEADERS = ['No', 'Mapel', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'Kunci'];
 
+    public static function isHeader(array $row): bool
+    {
+        return array_map(fn ($v) => mb_strtolower(trim((string) $v)), array_slice($row, 0, 9)) === array_map('mb_strtolower', self::HEADERS);
+    }
+
     // MySQL TEXT column limit.
     const MAX_TEXT_BYTES = 65535;
 
@@ -39,7 +44,7 @@ class QuestionImporter
         }
         $rows = $sheet->toArray(null, false, false, false);
         $header = array_shift($rows);
-        if (array_slice($header, 0, 9) !== self::HEADERS) {
+        if (! self::isHeader($header ?? [])) {
             throw ValidationException::withMessages(['file' => 'Header harus sesuai template.']);
         }
 
