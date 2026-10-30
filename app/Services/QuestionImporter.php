@@ -13,15 +13,16 @@ class QuestionImporter
 {
     const HEADERS = ['No', 'Mapel', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'Kunci'];
 
+    // Case-insensitive; a trailing dot is ignored ("No." from committee files).
     public static function isHeader(array $row): bool
     {
-        return array_map(fn ($v) => mb_strtolower(trim((string) $v)), array_slice($row, 0, 9)) === array_map('mb_strtolower', self::HEADERS);
+        return array_map(fn ($v) => rtrim(mb_strtolower(trim((string) $v)), '.'), array_slice($row, 0, 9)) === array_map('mb_strtolower', self::HEADERS);
     }
 
     // MySQL TEXT column limit.
     const MAX_TEXT_BYTES = 65535;
 
-    public function file(string $path): array
+    public function file(string $path, string $set = 'main'): array
     {
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
@@ -48,10 +49,10 @@ class QuestionImporter
             throw ValidationException::withMessages(['file' => 'Header harus sesuai template.']);
         }
 
-        return $this->validateRows($rows);
+        return $this->validateRows($rows, 2, $set);
     }
 
-    public function validateRows(array $rows, int $firstRow = 2): array
+    public function validateRows(array $rows, int $firstRow = 2, string $set = 'main'): array
     {
         if (count($rows) > 5000) {
             throw ValidationException::withMessages(['import' => 'Maksimal 5000 soal.']);
@@ -92,8 +93,8 @@ class QuestionImporter
                 $problems[] = 'Kunci harus cocok dengan opsi A-D/E';
             }
             $unique = ($subjectRecord?->id ?? $subject).'|'.(int) $number;
-            if (isset($seen[$unique]) || Question::whereHas('subject', fn ($q) => $q->where('name', $subject))->where('number', $number)->exists()) {
-                $problems[] = 'Nomor soal duplikat pada mapel';
+            if (isset($seen[$unique]) || Question::whereHas('subject', fn ($q) => $q->where('name', $subject))->where('question_set', $set)->where('number', $number)->exists()) {
+                $problems[] = 'Nomor soal duplikat pada mapel (paket '.Question::SETS[$set].')';
             }
             $seen[$unique] = true;
             if ($problems) {
@@ -101,7 +102,7 @@ class QuestionImporter
 
                 continue;
             }
-            $valid[] = ['number' => (int) $number, 'subject' => $subject, 'text' => $text, 'options' => array_filter(['A' => $a, 'B' => $b, 'C' => $c, 'D' => $d, 'E' => $e], fn ($v) => $v !== ''), 'key' => $key];
+            $valid[] = ['number' => (int) $number, 'subject' => $subject, 'question_set' => $set, 'text' => $text, 'options' => array_filter(['A' => $a, 'B' => $b, 'C' => $c, 'D' => $d, 'E' => $e], fn ($v) => $v !== ''), 'key' => $key];
         }
         if (! $valid && ! $errors) {
             $errors[] = ['row' => $firstRow, 'message' => 'Tidak ada soal untuk diimpor.'];
@@ -116,10 +117,11 @@ class QuestionImporter
             foreach ($rows as $row) {
                 $subject = Subject::where('name', $row['subject'])->firstOrFail();
                 $subject = Subject::lockForUpdate()->findOrFail($subject->id);
-                if (Question::where('subject_id', $subject->id)->where('number', $row['number'])->exists()) {
+                $set = $row['question_set'] ?? 'main';
+                if (Question::where('subject_id', $subject->id)->where('question_set', $set)->where('number', $row['number'])->exists()) {
                     throw ValidationException::withMessages(['import' => 'Data berubah sejak preview; nomor soal sudah ada. Ulangi import.']);
                 }
-                $q = Question::create(['subject_id' => $subject->id, 'number' => $row['number'], 'text' => $row['text']]);
+                $q = Question::create(['subject_id' => $subject->id, 'question_set' => $set, 'number' => $row['number'], 'text' => $row['text']]);
                 foreach ($row['options'] as $label => $text) {
                     $q->options()->create(['label' => $label, 'text' => $text, 'is_correct' => $label === $row['key']]);
                 }

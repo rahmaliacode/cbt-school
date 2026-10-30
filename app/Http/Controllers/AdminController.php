@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attempt;
 use App\Models\ExamSession;
 use App\Models\Participant;
+use App\Models\ParticipantAnswer;
 use App\Models\Question;
 use App\Models\Subject;
 use App\Services\ExamEngine;
@@ -53,7 +54,7 @@ class AdminController extends Controller
         $focus = $sessions->firstWhere('status', 'running') ?? $sessions->firstWhere('status', 'draft') ?? $sessions->first();
         $readiness = [];
         if ($focus) {
-            $bank = $focus->question_snapshot ?? Question::with('options')->where('subject_id', $focus->subject_id)->orderBy('number')->get()->map(fn ($q) => ['options' => $q->options->map(fn ($o) => ['is_correct' => $o->is_correct])->all()])->all();
+            $bank = $focus->question_snapshot ?? Question::with('options')->where('subject_id', $focus->subject_id)->where('question_set', $focus->question_set)->orderBy('number')->get()->map(fn ($q) => ['options' => $q->options->map(fn ($o) => ['is_correct' => $o->is_correct])->all()])->all();
             $selected = array_slice($bank, 0, $focus->question_count);
             $readiness = [
                 ['ok' => $focus->participants->isNotEmpty(), 'title' => 'Peserta terdaftar', 'detail' => $focus->participants->count().' peserta ditugaskan ke sesi', 'url' => '/admin/sessions/'.$focus->id.'/edit', 'action' => 'Pilih peserta'],
@@ -202,16 +203,17 @@ class AdminController extends Controller
 
     private function writeQuestion(Request $r, ExamEngine $engine, ?Question $question = null)
     {
-        $data = $r->validate(['subject_id' => 'required|exists:subjects,id', 'number' => ['required', 'integer', 'min:1', 'max:2147483647', Rule::unique('questions')->where('subject_id', $r->subject_id)->ignore($question?->id)], 'text' => 'required|string', 'options' => 'required|array:A,B,C,D,E', 'options.A' => 'required|string', 'options.B' => 'required|string', 'options.C' => 'required|string', 'options.D' => 'required|string', 'options.E' => 'nullable|string', 'key' => 'required|in:A,B,C,D,E', 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048|dimensions:max_width=6000,max_height=6000', 'image_alt' => 'nullable|string|max:200', 'remove_image' => 'nullable|boolean']);
+        $set = in_array($r->question_set, array_keys(Question::SETS), true) ? $r->question_set : ($question?->question_set ?? 'main');
+        $data = $r->validate(['subject_id' => 'required|exists:subjects,id', 'question_set' => ['nullable', Rule::in(array_keys(Question::SETS))], 'number' => ['required', 'integer', 'min:1', 'max:2147483647', Rule::unique('questions')->where('subject_id', $r->subject_id)->where('question_set', $set)->ignore($question?->id)], 'text' => 'required|string', 'options' => 'required|array:A,B,C,D,E', 'options.A' => 'required|string', 'options.B' => 'required|string', 'options.C' => 'required|string', 'options.D' => 'required|string', 'options.E' => 'nullable|string', 'key' => 'required|in:A,B,C,D,E', 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048|dimensions:max_width=6000,max_height=6000', 'image_alt' => 'nullable|string|max:200', 'remove_image' => 'nullable|boolean']);
         $engine->require($data['key'] !== 'E' || isset($data['options']['E']) && $data['options']['E'] !== '', 'Opsi E wajib jika kunci E.');
         $engine->require(collect([$data['text'], ...$data['options']])->every(fn ($v) => strlen((string) $v) <= QuestionImporter::MAX_TEXT_BYTES), 'Teks soal/opsi terlalu panjang (maksimal 64 KB).');
         $uploadedPath = null;
-        try { DB::transaction(function () use ($question, $data, $r, &$uploadedPath) {
+        try { DB::transaction(function () use ($question, $data, $r, $set, &$uploadedPath) {
             if ($question && ExamSession::whereNotNull('question_snapshot')->get()->contains(fn ($s) => in_array($question->id, array_column($s->question_snapshot, 'id')))) {
                 throw ValidationException::withMessages(['question' => 'Soal sudah dipakai. Buat soal baru untuk menjaga riwayat.']);
             }
             $q = $question ?? new Question;
-            $q->fill(collect($data)->only(['subject_id', 'number', 'text', 'image_alt'])->all());
+            $q->fill(collect($data)->only(['subject_id', 'number', 'text', 'image_alt'])->all() + ['question_set' => $set]);
             if ($r->boolean('remove_image')) { $q->image_path = null; }
             if ($r->hasFile('image')) {
                 $path = $r->file('image')->store('question-images', 'local');
@@ -256,10 +258,11 @@ class AdminController extends Controller
     public function preview(Request $r, QuestionImporter $importer)
     {
         $r->session()->forget('question_import');
+        $set = $r->validate(['question_set' => ['nullable', Rule::in(array_keys(Question::SETS))]])['question_set'] ?? 'main';
         if ($r->hasFile('file')) {
             $r->validate(['file' => 'required|file|mimes:xlsx,xls,csv|max:10240']);
             try {
-                $preview = $importer->file($r->file('file')->getRealPath());
+                $preview = $importer->file($r->file('file')->getRealPath(), $set);
             } catch (ValidationException $e) {
                 throw $e;
             } catch (\Throwable $e) {
@@ -272,13 +275,13 @@ class AdminController extends Controller
             if ($hasHeader) {
                 array_shift($rows);
             }
-            $preview = $importer->validateRows($rows, $hasHeader ? 2 : 1);
+            $preview = $importer->validateRows($rows, $hasHeader ? 2 : 1, $set);
         }
         if (! $preview['errors']) {
             $r->session()->put('question_import', $preview['rows']);
         }
 
-        return view('admin.import', compact('preview'));
+        return view('admin.import', compact('preview', 'set'));
     }
 
     public function commitImport(Request $r, QuestionImporter $importer, ExamEngine $engine)
@@ -299,29 +302,32 @@ class AdminController extends Controller
 
     public function sessionForm(?ExamSession $examSession = null)
     {
-        $taken = $this->participantsInOtherSessions($examSession);
+        // Per package: participant IDs already in another session of that package (the form hides them for the chosen package).
+        $taken = collect(Question::SETS)->map(fn ($label, $set) => $this->participantsInOtherSessions($examSession, $set));
 
-        return view('admin.session-form', ['session' => $examSession ?? new ExamSession(['question_count' => 30, 'duration_minutes' => 90, 'option_count' => 4, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'tie_breaker' => 'none']), 'subjects' => Subject::all(), 'participants' => Participant::whereNotIn('id', $taken)->orderBy('participant_number')->get(), 'hiddenCount' => $taken->count()]);
+        return view('admin.session-form', ['session' => $examSession ?? new ExamSession(['question_set' => 'main', 'question_count' => 30, 'duration_minutes' => 90, 'option_count' => 4, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'tie_breaker' => 'none']), 'subjects' => Subject::all(), 'participants' => Participant::orderBy('participant_number')->get(), 'taken' => $taken]);
     }
 
-    // Each participant competes in one subject, so a participant belongs to at most one session.
-    private function participantsInOtherSessions(?ExamSession $examSession)
+    // Each participant competes in one subject: at most one main session, plus at most one draw session if tied.
+    private function participantsInOtherSessions(?ExamSession $examSession, string $set)
     {
-        return DB::table('exam_session_participant')->when($examSession, fn ($q) => $q->where('exam_session_id', '!=', $examSession->id))->distinct()->pluck('participant_id');
+        return DB::table('exam_session_participant')->join('exam_sessions', 'exam_sessions.id', '=', 'exam_session_participant.exam_session_id')->where('exam_sessions.question_set', $set)->when($examSession?->exists, fn ($q) => $q->where('exam_session_id', '!=', $examSession->id))->distinct()->pluck('participant_id');
     }
 
     public function saveSession(Request $r, ExamEngine $engine, ?ExamSession $examSession = null)
     {
-        $data = $r->validate(['name' => 'required|string|max:150', 'subject_id' => 'required|exists:subjects,id', 'token' => ['required', 'string', 'min:6', 'max:32', Rule::unique('exam_sessions')->ignore($examSession?->id)], 'question_count' => 'required|integer|min:1|max:500', 'duration_minutes' => 'required|integer|min:1|max:600', 'correct_score' => 'required|numeric|between:-10000,10000', 'incorrect_score' => 'required|numeric|between:-10000,10000', 'blank_score' => 'required|numeric|between:-10000,10000', 'option_count' => 'required|in:4,5', 'tie_breaker' => 'required|in:none,correct_count,earliest_submit', 'participant_ids' => 'required|array|min:1', 'participant_ids.*' => 'integer|exists:participants,id']);
+        $data = $r->validate(['name' => 'required|string|max:150', 'subject_id' => 'required|exists:subjects,id', 'question_set' => ['nullable', Rule::in(array_keys(Question::SETS))], 'token' => ['required', 'string', 'min:6', 'max:32', Rule::unique('exam_sessions')->ignore($examSession?->id)], 'question_count' => 'required|integer|min:1|max:500', 'duration_minutes' => 'required|integer|min:1|max:600', 'correct_score' => 'required|numeric|between:-10000,10000', 'incorrect_score' => 'required|numeric|between:-10000,10000', 'blank_score' => 'required|numeric|between:-10000,10000', 'option_count' => 'required|in:4,5', 'tie_breaker' => 'required|in:none,correct_count,earliest_submit', 'participant_ids' => 'required|array|min:1', 'participant_ids.*' => 'integer|exists:participants,id']);
         foreach (['shuffle_questions', 'shuffle_options', 'show_live_score'] as $f) {
             $data[$f] = $r->boolean($f);
-        }DB::transaction(function () use ($examSession, $data, $engine) {
+        }
+        $data['question_set'] ??= $examSession?->question_set ?? 'main';
+        DB::transaction(function () use ($examSession, $data, $engine) {
             $s = $examSession ? ExamSession::lockForUpdate()->findOrFail($examSession->id) : new ExamSession;
             $engine->require(! $s->exists || $s->status === 'draft', 'Konfigurasi sesi yang sudah dimulai tidak dapat diubah.');
             $ids = $data['participant_ids'];
             unset($data['participant_ids']);
-            $conflicts = Participant::whereIn('id', $this->participantsInOtherSessions($s->exists ? $s : null)->intersect($ids))->orderBy('participant_number')->pluck('participant_number');
-            $engine->require($conflicts->isEmpty(), 'Peserta sudah terdaftar di sesi lain: '.$conflicts->take(5)->implode(', ').($conflicts->count() > 5 ? ' dan '.($conflicts->count() - 5).' lainnya' : '').'.');
+            $conflicts = Participant::whereIn('id', $this->participantsInOtherSessions($s, $data['question_set'])->intersect($ids))->orderBy('participant_number')->pluck('participant_number');
+            $engine->require($conflicts->isEmpty(), 'Peserta sudah terdaftar di sesi '.Question::SETS[$data['question_set']].' lain: '.$conflicts->take(5)->implode(', ').($conflicts->count() > 5 ? ' dan '.($conflicts->count() - 5).' lainnya' : '').'.');
             $s->fill($data)->save();
             $s->participants()->sync($ids);
         });
@@ -348,10 +354,35 @@ class AdminController extends Controller
         return view('admin.monitor', ['session' => $examSession]);
     }
 
-    // Read-only projector screen: no token, no reset, no focus signals.
+    // Committee display: no token, reset or focus signals. Unlike the monitor it shows scores
+    // (provisional while answering) when show_live_score is on, so it must not face students.
     public function display(ExamSession $examSession)
     {
         return view('admin.display', ['session' => $examSession]);
+    }
+
+    public function displayData(ExamSession $examSession, ExamEngine $engine)
+    {
+        $engine->expire();
+        $examSession->refresh();
+        $scoresVisible = $examSession->status === 'ended' || ($examSession->configuration_snapshot['show_live_score'] ?? false);
+        $attempts = $examSession->attempts()->with('result')->get()->keyBy('participant_id');
+        $answers = ParticipantAnswer::whereIn('attempt_id', $attempts->pluck('id'))->get(['attempt_id', 'question_id', 'answer_option_id'])->groupBy('attempt_id');
+        $rows = $examSession->participants->map(function ($p) use ($attempts, $answers, $examSession, $engine, $scoresVisible) {
+            $a = $attempts->get($p->id);
+            $selected = $a ? ($answers->get($a->id) ?? collect())->pluck('answer_option_id', 'question_id') : collect();
+            $score = null;
+            if ($scoresVisible && $a) {
+                $score = $a->result ? (float) $a->result->total_score : (float) $engine->tally($examSession, $selected)['total_score'];
+            }
+
+            return ['participant_number' => $p->participant_number, 'name' => $p->name, 'status' => $a?->status ?? 'not_started', 'answered' => $selected->filter()->count(), 'total' => $examSession->question_count, 'score' => $score, 'provisional' => $score !== null && $a->status === 'in_progress'];
+        });
+        if ($scoresVisible) {
+            $rows = $rows->sort(fn ($x, $y) => [$y['score'] ?? PHP_INT_MIN, $x['participant_number']] <=> [$x['score'] ?? PHP_INT_MIN, $y['participant_number']]);
+        }
+
+        return response()->json(['server_now' => now()->toIso8601String(), 'status' => $examSession->status, 'ends_at' => $examSession->ends_at?->toIso8601String(), 'scores_visible' => $scoresVisible, 'participants' => $rows->values()]);
     }
 
     public function monitorData(ExamSession $examSession, ExamEngine $engine)

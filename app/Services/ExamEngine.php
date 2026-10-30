@@ -22,7 +22,7 @@ class ExamEngine
         DB::transaction(function () use ($session) {
             $s = ExamSession::lockForUpdate()->findOrFail($session->id);
             $this->require($s->status === 'draft', 'Sesi sudah dimulai.');
-            $questions = Question::with('options')->where('subject_id', $s->subject_id)->orderBy('number')->get();
+            $questions = Question::with('options')->where('subject_id', $s->subject_id)->where('question_set', $s->question_set)->orderBy('number')->get();
             $this->require($questions->count() >= $s->question_count, 'Jumlah soal belum mencukupi.');
             $questions = $questions->take($s->question_count);
             foreach ($questions as $q) {
@@ -98,20 +98,20 @@ class ExamEngine
         });
     }
 
-    private function finalizeLocked(Attempt $a, ExamSession $s, string $status): Attempt
+    // Scores selected option IDs (keyed by question ID) against the session snapshot.
+    public function tally(ExamSession $s, \Illuminate\Support\Collection $selected): array
     {
-        $answers = $a->answers()->get()->keyBy('question_id');
         $correct = 0;
         $incorrect = 0;
         $blank = 0;
         foreach ($s->question_snapshot as $q) {
-            $selected = $answers->get($q['id'])?->answer_option_id;
-            if (! $selected) {
+            $optionId = $selected->get($q['id']);
+            if (! $optionId) {
                 $blank++;
 
                 continue;
             }
-            $option = collect($q['options'])->firstWhere('id', $selected);
+            $option = collect($q['options'])->firstWhere('id', $optionId);
             if ($option && $option['is_correct']) {
                 $correct++;
             } else {
@@ -119,7 +119,13 @@ class ExamEngine
             }
         }
         $c = $s->configuration_snapshot;
-        Result::create(['attempt_id' => $a->id, 'correct_count' => $correct, 'incorrect_count' => $incorrect, 'blank_count' => $blank, 'total_score' => $correct * $c['correct_score'] + $incorrect * $c['incorrect_score'] + $blank * $c['blank_score']]);
+
+        return ['correct_count' => $correct, 'incorrect_count' => $incorrect, 'blank_count' => $blank, 'total_score' => $correct * $c['correct_score'] + $incorrect * $c['incorrect_score'] + $blank * $c['blank_score']];
+    }
+
+    private function finalizeLocked(Attempt $a, ExamSession $s, string $status): Attempt
+    {
+        Result::create(['attempt_id' => $a->id] + $this->tally($s, $a->answers()->pluck('answer_option_id', 'question_id')));
         $a->update(['status' => $status, 'submitted_at' => $status === 'timed_out' ? $a->deadline_at : now()]);
         $this->log($status === 'timed_out' ? 'attempt_auto_submitted' : 'attempt_submitted', ['attempt_id' => $a->id]);
 

@@ -12,7 +12,7 @@
 <tbody>@forelse($sessions as $s)<tr>
 <td>
 <b>{{ $s->name }}</b>
-<div class="muted small">{{ $s->subject->name }}</div>
+<div class="muted small">{{ $s->subject->name }} · Paket {{ \App\Models\Question::SETS[$s->question_set] ?? $s->question_set }}</div>
 </td>
 <td>
 <code>{{ $s->token }}</code>

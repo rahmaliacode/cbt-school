@@ -238,6 +238,31 @@ class CbtTest extends TestCase
         $this->actingAs($this->admin());
         $this->get('/admin/sessions/'.$s->id.'/display')->assertOk()->assertSee('Layar Pantau')->assertDontSee($s->token)->assertDontSee('Reset');
         $this->getJson('/admin/sessions/'.$s->id.'/monitor-data')->assertOk()->assertJsonPath('ends_at', $s->fresh()->ends_at->toIso8601String());
+        $a = $this->attempt($s);
+        $this->answer($a, $a->question_order[0]);
+        $this->getJson('/admin/sessions/'.$s->id.'/display-data')->assertOk()->assertJsonPath('scores_visible', false)->assertJsonPath('participants.0.answered', 1)->assertJsonPath('participants.0.score', null);
+    }
+
+    public function test_committee_display_shows_provisional_scores_sorted_when_live_score_on(): void
+    {
+        $s = $this->makeSession(['show_live_score' => true]);
+        $leader = Participant::create(['participant_number' => 'P-002', 'name' => 'Laju']);
+        $s->participants()->attach($leader);
+        $a = $this->attempt($s);
+        $b = $this->engine->startAttempt($s, $leader->id);
+        $this->answer($a, $a->question_order[0], false);
+        $this->answer($b, $b->question_order[0]);
+        $this->answer($b, $b->question_order[1]);
+        $this->actingAs($this->admin());
+        $rows = $this->getJson('/admin/sessions/'.$s->id.'/display-data')->assertOk()->assertJsonPath('scores_visible', true)->json('participants');
+        $this->assertSame(['P-002', 'P-001'], array_column($rows, 'participant_number'));
+        $this->assertEquals([8.0, -1.0], array_column($rows, 'score'));
+        $this->assertSame([true, true], array_column($rows, 'provisional'));
+        $this->engine->submit($b);
+        $row = $this->getJson('/admin/sessions/'.$s->id.'/display-data')->json('participants.0');
+        $this->assertEquals($b->refresh()->result->total_score, $row['score']);
+        $this->assertFalse($row['provisional']);
+        $this->assertArrayNotHasKey('total_score', $this->getJson('/admin/sessions/'.$s->id.'/monitor-data')->json('participants.0'));
     }
 
     public function test_admin_password_can_be_reset_from_console(): void
@@ -294,18 +319,45 @@ class CbtTest extends TestCase
         $this->assertNotSame($a->id, $this->attempt($s->refresh())->id);
     }
 
-    public function test_participant_can_only_be_assigned_to_one_session(): void
+    public function test_participant_has_at_most_one_session_per_question_set(): void
     {
         $s = $this->makeSession();
         $taken = $s->participants->first();
         $free = Participant::create(['participant_number' => 'P-002', 'name' => 'Bebas']);
         $this->actingAs($this->admin());
-        $this->get('/admin/sessions/create')->assertOk()->assertSee('P-002')->assertDontSee('P-001 · Nadira')->assertSee('1 peserta sudah ada di sesi lain');
+        $this->get('/admin/sessions/create')->assertOk()->assertSee('data-taken="main">', false)->assertSee('P-002 · Bebas');
         $data = ['name' => 'Kedua', 'subject_id' => $s->subject_id, 'token' => 'KEDUA123', 'question_count' => 3, 'duration_minutes' => 60, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'option_count' => 4, 'tie_breaker' => 'none'];
-        $this->postJson('/admin/sessions', $data + ['participant_ids' => [$taken->id, $free->id]])->assertUnprocessable()->assertJsonFragment(['Peserta sudah terdaftar di sesi lain: P-001.']);
+        $this->postJson('/admin/sessions', $data + ['participant_ids' => [$taken->id, $free->id]])->assertUnprocessable()->assertJsonFragment(['Peserta sudah terdaftar di sesi Utama lain: P-001.']);
         $this->post('/admin/sessions', $data + ['participant_ids' => [$free->id]])->assertRedirect('/admin/sessions');
+        // A tied participant can still join one draw session.
+        $draw = ['name' => 'Draw', 'token' => 'DRAW1234', 'question_set' => 'draw'] + $data;
+        $this->post('/admin/sessions', $draw + ['participant_ids' => [$taken->id]])->assertRedirect('/admin/sessions');
+        $this->postJson('/admin/sessions', ['token' => 'DRAW5678'] + $draw + ['participant_ids' => [$taken->id]])->assertUnprocessable()->assertJsonFragment(['Peserta sudah terdaftar di sesi Draw (tie-breaker) lain: P-001.']);
         $second = ExamSession::where('token', 'KEDUA123')->first();
-        $this->get('/admin/sessions/'.$second->id.'/edit')->assertOk()->assertSee('P-002 · Bebas')->assertDontSee('P-001 · Nadira');
+        $this->get('/admin/sessions/'.$second->id.'/edit')->assertOk()->assertSee('P-002 · Bebas');
+    }
+
+    public function test_draw_questions_are_a_separate_bank_and_not_used_for_champions(): void
+    {
+        $s = $this->makeSession();
+        $importer = app(QuestionImporter::class);
+        $this->assertNotEmpty($importer->validateRows([[1, 'Matematika', 'Soal utama ganda', 'a', 'b', 'c', 'd', '', 'A']])['errors']);
+        $preview = $importer->validateRows([[1, 'Matematika', 'Draw 1', 'a', 'b', 'c', 'd', '', 'A'], [2, 'Matematika', 'Draw 2', 'a', 'b', 'c', 'd', '', 'B']], 2, 'draw');
+        $this->assertSame([], $preview['errors']);
+        $importer->commit($preview['rows']);
+        $this->assertSame(2, Question::where('question_set', 'draw')->count());
+        $draw = ExamSession::create(['subject_id' => $s->subject_id, 'question_set' => 'draw', 'name' => 'Draw', 'token' => 'DRAW1234', 'question_count' => 2, 'duration_minutes' => 15, 'correct_score' => 4, 'incorrect_score' => -1, 'blank_score' => 0, 'option_count' => 4, 'tie_breaker' => 'none']);
+        $draw->participants()->attach($s->participants->first());
+        $this->engine->startSession($draw);
+        $this->assertEqualsCanonicalizing(Question::where('question_set', 'draw')->pluck('id')->all(), array_column($draw->refresh()->question_snapshot, 'id'));
+        $this->assertNotContains($draw->question_snapshot[0]['id'], array_column($s->question_snapshot, 'id'));
+        foreach ([$s, $draw] as $session) {
+            $this->engine->endSession($session);
+            $session->refresh()->update(['results_locked_at' => now()]);
+        }
+        $card = app(\App\Services\WinnerSummary::class)->get()->firstWhere('subject.id', $s->subject_id);
+        $this->assertSame($s->id, $card['session']->id);
+        $this->assertSame([$s->id], $card['choices']->pluck('id')->all());
     }
 
     public function test_import_validates_all_rows_and_rolls_back_duplicate_commit(): void

@@ -2,7 +2,7 @@
 <div>
 <p class="eyebrow">BANK SOAL</p>
 <h1>Paket soal</h1>
-<p class="muted">Import Excel, tempel massal, atau input satu per satu.</p>
+<p class="muted">Import Excel, tempel massal, atau input satu per satu. Setiap mapel punya paket <b>Utama</b> dan paket <b>Draw (tie-breaker)</b> untuk peserta yang skornya seri.</p>
 </div>
 <a class="button secondary" href="/admin/questions/template">↓ Download template Excel</a>
 </div>
@@ -12,6 +12,8 @@
 <p class="muted small">Header: No | Mapel | Soal | Opsi A–E | Kunci. Opsi E boleh kosong. Buat mapel sebelum import.</p>
 <form enctype="multipart/form-data" method="post" action="/admin/questions/preview">@csrf<label>File soal (.xlsx, .xls, .csv)<input name="file" type="file" required accept=".xlsx,.xls,.csv">
 </label>
+<label>Masuk ke paket<select name="question_set">@foreach(\App\Models\Question::SETS as $value=>$label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select>
+</label>
 <button>Periksa & preview</button>
 </form>
 </section>
@@ -20,6 +22,8 @@
 <p class="muted small">Salin sembilan kolom dari Excel, dipisahkan TAB. Header boleh disertakan.</p>
 <form enctype="multipart/form-data" method="post" action="/admin/questions/preview">@csrf<label>Data soal<textarea name="paste" rows="4" required placeholder="Tempel baris dari Excel di sini">
 </textarea>
+</label>
+<label>Masuk ke paket<select name="question_set">@foreach(\App\Models\Question::SETS as $value=>$label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select>
 </label>
 <button>Preview data</button>
 </form>
@@ -33,8 +37,8 @@
 <section class="card" data-search-table>
 <div class="table-tools"><label><span class="sr-only">Cari soal</span><input type="search" data-search-input placeholder="Cari teks soal atau nomor…"></label><span class="small muted" data-search-count></span></div><p class="table-empty" data-search-empty hidden>Tidak ada data yang cocok. Coba kata lain.</p>
 <h2>Daftar soal <span class="muted small">{{ $questions->count() }} soal</span>
-</h2>@php($bySubject = $questions->groupBy('subject_id'))@forelse($subjects as $subject)@php($items = $bySubject->get($subject->id, collect()))<details class="subject-group" @if($items->isNotEmpty()) open @endif>
-<summary><strong>{{ $subject->name }}</strong> <span class="muted small">{{ $items->count() }} soal</span></summary>@if($items->isEmpty())<p class="empty">Belum ada soal untuk mapel ini.</p>@else<div class="table-wrap">
+</h2>@php($bySubject = $questions->groupBy('subject_id'))@forelse($subjects as $subject)@php($subjectItems = $bySubject->get($subject->id, collect()))<details class="subject-group" @if($subjectItems->isNotEmpty()) open @endif>
+<summary><strong>{{ $subject->name }}</strong> <span class="muted small">@foreach(\App\Models\Question::SETS as $set=>$setLabel){{ $setLabel }}: {{ $subjectItems->where('question_set', $set)->count() }}@if(!$loop->last) · @endif @endforeach</span></summary>@if($subjectItems->isEmpty())<p class="empty">Belum ada soal untuk mapel ini.</p>@else @foreach(\App\Models\Question::SETS as $set=>$setLabel)@php($items = $subjectItems->where('question_set', $set))@if($items->isNotEmpty())<h3 class="set-heading">Paket {{ $setLabel }} <span class="muted small">{{ $items->count() }} soal</span></h3><div class="table-wrap">
 <table class="question-table">
 <thead>
 <tr>
@@ -60,4 +64,4 @@
 </form></td>
 </tr>@endforeach</tbody>
 </table>
-</div>@endif</details>@empty<p class="empty">Belum ada mapel. Buat mapel dahulu di menu Mata Pelajaran.</p>@endforelse</section>@endsection
+</div>@endif @endforeach @endif</details>@empty<p class="empty">Belum ada mapel. Buat mapel dahulu di menu Mata Pelajaran.</p>@endforelse</section>@endsection

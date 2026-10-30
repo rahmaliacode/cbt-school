@@ -32,10 +32,10 @@ Thumbs.db
 /backups/
 *.sql
 !/scripts/setup-database.sql
-# Question/participant spreadsheets contain competition data.
-/*.xlsx
-/*.xls
-/*.csv
+# Question/participant spreadsheets contain competition data (e.g. "soal cec/").
+*.xlsx
+*.xls
+*.csv
 /storage/app/private/*
 !/storage/app/private/.gitignore
 /storage/app/public/*

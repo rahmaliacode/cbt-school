@@ -131,6 +131,7 @@ CREATE TABLE `failed_jobs` (
 -- 2026_10_11_000001_create_cbt_tables
 -- 2026_10_11_000002_add_result_lock_to_exam_sessions (exam_sessions.results_locked_at)
 -- 2026_10_11_000005_add_question_images (questions.image_path, questions.image_alt)
+-- 2026_10_27_000001_add_question_sets (questions.question_set, exam_sessions.question_set: main / draw)
 
 CREATE TABLE `subjects` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
@@ -150,8 +151,9 @@ CREATE TABLE `questions` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `image_path` varchar(255) DEFAULT NULL,
   `image_alt` varchar(200) DEFAULT NULL,
+  `question_set` varchar(20) NOT NULL DEFAULT 'main',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `questions_subject_id_number_unique` (`subject_id`, `number`),
+  UNIQUE KEY `questions_subject_id_question_set_number_unique` (`subject_id`, `question_set`, `number`),
   CONSTRAINT `questions_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -200,6 +202,7 @@ CREATE TABLE `exam_sessions` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `results_locked_at` timestamp NULL DEFAULT NULL,
+  `question_set` varchar(20) NOT NULL DEFAULT 'main',
   PRIMARY KEY (`id`),
   UNIQUE KEY `exam_sessions_token_unique` (`token`),
   KEY `exam_sessions_status_index` (`status`),
@@ -291,6 +294,7 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('0001_01_01_000002_create_jobs_table', 1),
   ('2026_10_11_000001_create_cbt_tables', 1),
   ('2026_10_11_000002_add_result_lock_to_exam_sessions', 1),
-  ('2026_10_11_000005_add_question_images', 1);
+  ('2026_10_11_000005_add_question_images', 1),
+  ('2026_10_27_000001_add_question_sets', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -1369,3 +1369,7 @@ button.action-button:hover:not(:disabled),
 .question-table td:nth-child(2) {
   min-width: 280px;
 }
+.subject-group .set-heading {
+  margin: 4px 16px 10px;
+  font-size: 15px;
+}

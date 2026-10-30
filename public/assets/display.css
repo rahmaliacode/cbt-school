@@ -127,3 +127,24 @@
     font-size: 40px;
   }
 }
+.display-note {
+  margin: -8px 0 16px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.display-score {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.display-score small {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
